@@ -1,0 +1,234 @@
+/- Missing (mostly intentionally)
+- type ascription "(e : ty)", LL1 restriction
+- range patterns
+- tags (open sum types)
+- records (moderately harder to produce compatible code)
+- mutation on fields, arrays, etc., LL1 restriction
+- lazy
+- exception
+- modules
+- objects and classes
+- named parameters
+- in-type aliases and recursive types (typexpr as 'ident)
+- if without else (I haven't made the necessary low-level access for
+  it in the tool yet)
+- `function` (the syntactic shorthand for `fun x -> match x with ...`)
+- match without surrounding with `begin` and `end` (I haven't made the
+  necessary low-level access for it in the tool yet)
+-/
+
+language OCaml
+
+include "./lexer.mc"
+
+start OFile
+
+type OFile
+type OTop
+type OParam
+type OBinding
+type OTyBinding
+type OExpr {
+  grouping = "(" ")",
+}
+type OPat {
+  grouping = "(" ")",
+}
+type OType {
+  grouping = "(" ")",
+}
+
+prod Tops: OFile = tops:OTop*
+
+-- Basic tokens
+token String {
+  repr = StringRepr {},
+  constructor = StringTok,
+  fragment = StringTokenParser,
+  ty = String,
+}
+token UInt {
+  repr = IntRepr {},
+  constructor = IntTok,
+  fragment = UIntTokenParser,
+  ty = Int,
+}
+token Char {
+  repr = CharRepr {},
+  constructor = CharTok,
+  fragment = CharOrTickTokenParser,
+}
+token Float {
+  repr = FloatRepr {},
+  constructor = FloatTok,
+  fragment = UFloatTokenParser,
+}
+token LIdent {
+  repr = LIdentRepr {},
+  constructor = LIdentTok,
+  fragment = LIdentTokenParser,
+  ty = String,
+}
+token UIdent {
+  repr = UIdentRepr {},
+  constructor = UIdentTok,
+  fragment = UIdentTokenParser,
+  ty = String,
+}
+
+-- Wrapping tokens that just change the type in the AST
+token UName {
+  base = UIdent,
+  wrap = nameNoSym,
+  ty = Name,
+}
+token LName {
+  base = LIdent,
+  wrap = nameNoSym,
+  ty = Name,
+}
+
+-- Token types only used through literals
+token {fragment = OperatorTokenParser,}
+token {fragment = CommaTokenParser,}
+token {fragment = SemiTokenParser,}
+token {fragment = SemiSemiTokenParser,}
+token {fragment = BracketTokenParser,}
+token {fragment = ArrayDelimTokenParser,}
+token {fragment = UnitTokenParser,}
+
+-- Whitespace and comments
+token {fragment = OCamlMultilineCommentParser,}
+token {fragment = WhitespaceParser,}
+
+-- Tops
+prod LetOTop : OTop =
+  "let" rec:"rec"? bindings:OBinding ("and" bindings:OBinding)* ";;"
+prod TypeOTop : OTop =
+  "type" bindings:OTyBinding ("and" bindings:OTyBinding)*
+
+prod LetOpOTop : OTop =
+  "letop" n:LName ":" ty:OType
+prod LetImplOTop : OTop =
+  "letimpl" "[" cost:OExpr "]" n:LName (":" ty:OType)? "=" body:OExpr ";;"
+prod ReprOTop : OTop =
+  "letrepr" n:LName "{" lhs:OType "=" rhs:OType "}"
+
+-- Type bindings
+prod SimpleOTyBinding : OTyBinding =
+ ( empty
+ | "'" params:LName
+ | "(" "'" params:LName ("," "'" params:LName)* ")"
+ )
+ n:LName
+ ( empty
+ | "="
+   ( alias:OType
+   | constructors:{"|" n:UName "of" ty:OType}+
+   )
+ )
+
+-- Parameters
+prod PatOParam : OParam = "(" pat:OPat (":" ty:OType)? ")"
+prod NameOParam : OParam = n:LName
+prod IgnoreOParam : OParam = "_"
+
+-- Bindings
+prod Simple : OBinding =
+  n:LName params:OParam* (":" ty:OType)? "=" body:OExpr
+
+-- Exprs
+prod Var : OExpr = n:LName
+prod Num : OExpr = (i:UInt | f:Float)
+prod String : OExpr = v:String
+prod Char : OExpr = v:Char
+prod True : OExpr = "true"
+prod False : OExpr = "false"
+prod Con : OExpr = n:UName
+prod List : OExpr = "[" unbrokenElems:OExpr? "]"
+prod Array : OExpr = "[|" unbrokenElems:OExpr? "|]"
+prod Unit : OExpr = "()"
+
+prefix Negi : OExpr = "-"
+prefix Negf : OExpr = "-."
+prod If : OExpr = "if" c:OExpr "then" t:OExpr "else" e:OExpr
+prod Let : OExpr =
+  "let" rec:"rec"? bindings:OBinding ("and" bindings:OBinding)*
+  "in" inexpr:OExpr
+prod Fun : OExpr = "fun" params:OParam+ "->" body:OExpr
+prod Matching : OExpr =
+  "begin" "match" scrut:OExpr "with"
+    "|"? arms:{pat:OPat "->" body:OExpr}
+    arms:{"|" pat:OPat "->" body:OExpr}*
+  "end"
+
+infix left Tup : OExpr = ","
+infix left App : OExpr = empty
+infix right Cons : OExpr = op:"::"
+infix right Semi : OExpr = ";"
+infix right Or : OExpr = "||"
+infix right And : OExpr = "&&"
+
+postfix Access : OExpr = "."
+  ( field:LIdent
+  | module:UName
+  | "(" idx:OExpr ")"
+  )
+
+precedence {
+  Access;
+  App;
+  Negi Negf;
+  ~Or And;  -- Just because
+  Tup;
+  If;
+  Semi;
+  Let Fun;
+}
+
+-- Patterns
+prod WildOPat : OPat = "_"
+prod BindOPat : OPat = n:LName
+prod NumOPat : OPat = neg:"-"? i:UInt
+prod StringOPat : OPat = v:String
+prod CharOPat : OPat = v:Char
+prod TrueOPat : OPat = "true"
+prod FalseOPat : OPat = "false"
+prod ConOPat : OPat = parts:UName ("." parts:UName)*
+prod ListOPat : OPat = "[" (elems:OPat (";" elems:OPat)*)? "]"
+prod ArrayOPat : OPat = "[|" (elems:OPat (";" elems:OPat)*)? "|]"
+prod UnitOPat : OPat = "()"
+
+infix right AppOPat : OPat = empty
+infix left OrOPat : OPat = "|"
+infix left TupOPat : OPat = ","
+infix right ConsOPat : OPat = "::"
+
+postfix AsOPat : OPat = "as" n:LName
+
+precedence {
+  AppOPat;
+  ConsOPat;
+  TupOPat;
+  OrOPat;
+  AsOPat;
+}
+
+-- Types
+prod VarOType : OType = "'" n:LName
+prod ConOType : OType = n:LName
+prod WildOType : OType = "_"
+
+postfix AppOType : OType =
+  (modules:UName ".")* n:LName
+
+infix left TupOType : OType = "*"
+infix left CommaOType : OType = ","
+infix right ArrowOType : OType = "->"
+
+precedence {
+  AppOType;
+  TupOType;
+  ArrowOType;
+  CommaOType;
+}
