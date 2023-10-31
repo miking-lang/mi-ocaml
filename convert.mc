@@ -180,7 +180,7 @@ lang ConvertSimpleOTyBinding = ConvertOCamlToMExpr + SimpleOTyBindingAst
       let mkConDef = lam constr. lam cont.
         let ty = tyWithInfo x.n.i (ntycon_ x.n.v) in
         let ty = tyapps_ ty (map ntyvar_ paramNames) in
-        let ty = tyarrow_ (convType constr.ty) ty in
+        let ty = tyarrow_ (optionMapOr tyunit_ convType constr.ty) ty in
         let ty = foldr ntyall_ ty paramNames in
         bind_ (ncondef_ constr.n.v ty) cont in
       foldr mkConDef cont x.constructors in

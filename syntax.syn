@@ -124,7 +124,7 @@ prod SimpleOTyBinding : OTyBinding =
  ( empty
  | "="
    ( alias:OType
-   | constructors:{"|" n:UName "of" ty:OType}+
+   | constructors:{"|" n:UName ("of" ty:OType)?}+
    )
  )
 
