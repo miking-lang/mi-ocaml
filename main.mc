@@ -48,6 +48,7 @@ let options =
   , clibs = []
   , debugMExpr = None ()
   , destinationFile = None ()
+  , jsonPath = None ()
   } in
 
 let argConfig =
@@ -66,6 +67,10 @@ let argConfig =
   , ( [("--debug-mexpr", " ", "<path>")]
     , "Output an interactive (html) pprinted version of the AST just after conversion to MExpr."
     , lam p. { p.options with debugMExpr = Some (argToString p) }
+    )
+  , ( [("--constraints-json", " ", "<path>")]
+    , "Output the connections between representations and operations in JSON format."
+    , lam p. { p.options with jsonPath = Some (argToString p) }
     )
   ] in
 
@@ -90,6 +95,11 @@ let ast = wrapInPrelude ast in
 let ast = symbolize ast in
 let ast = typeCheckLeaveMeta ast in
 let ast = use RepAnalysis in typeCheckLeaveMeta ast in
+
+(match options.jsonPath with Some jsonPath then
+   dumpRepTypesProblem jsonPath ast
+ else ());
+
 let ast = use MExprRepTypesComposedSolver in reprSolve ast in
 let ast = removeMetaVarExpr ast in
 let ast = lowerAll ast in
