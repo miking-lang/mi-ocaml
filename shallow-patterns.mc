@@ -78,6 +78,9 @@ lang ShallowOCamlList = ShallowBase + OCamlListAst
   | SPatOCons x ->
     let pat = PatOCons {head = npvar_ x.head, tail = npvar_ x.tail, info = NoInfo (), ty = tyunknown_} in
     match_ (nvar_ scrutinee) pat t e
+  | SPatONil _ ->
+    let pat = PatONil {info = NoInfo (), ty = tyunknown_} in
+    match_ (nvar_ scrutinee) pat t e
 
   sem shallowCmp =
   | (SPatOCons l, SPatOCons r) ->

@@ -148,6 +148,9 @@ prod Con : OExpr = n:UName
 prod List : OExpr = "[" unbrokenElems:OExpr? "]"
 prod Array : OExpr = "[|" unbrokenElems:OExpr? "|]"
 prod Unit : OExpr = "()"
+-- NOTE(vipa, 2023-11-03): This breaks compatibility with OCaml, it
+-- has `@` as an infix operator
+prod ScaleBase : OExpr = "@"
 
 prod If : OExpr = "if" c:OExpr "then" t:OExpr "else" e:OExpr
 prod Let : OExpr =
@@ -230,6 +233,7 @@ precedence {
 prod VarOType : OType = "'" n:LName
 prod ConOType : OType = n:LName
 prod WildOType : OType = "_"
+prod SubstOType : OType = "!" n:LName ("(" ty:OType ")")?
 
 postfix AppOType : OType =
   (modules:UName ".")* n:LName

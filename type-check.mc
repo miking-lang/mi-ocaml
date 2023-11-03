@@ -52,6 +52,9 @@ lang OCamlListTypeCheck = TypeCheck + Unify + OCamlListAst + CompatibleType
     let ty = TyOList {info = x.info, elem = tyPat head} in
     unify env [infoPat head, infoPat tail] ty (tyPat tail);
     (patEnv, PatOCons {x with ty = ty, head = head, tail = tail})
+  | PatONil x ->
+    let ty = TyOList {info = x.info, elem = newmonovar env.currentLvl x.info} in
+    (patEnv, PatONil {x with ty = ty})
 
   sem unifyBase u env =
   | (TyOList a, TyOList b) ->

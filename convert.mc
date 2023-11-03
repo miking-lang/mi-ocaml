@@ -135,7 +135,7 @@ lang ConvertLetOpOTop = ConvertOCamlToMExpr + LetOpOTopAst + OpDeclAst + FindVar
     }
 end
 
-lang ConvertLetImplOTop = ConvertOCamlToMExpr + LetImplOTopAst + OpImplAst + EvalCost + SymCost
+lang ConvertLetImplOTop = ConvertOCamlToMExpr + LetImplOTopAst + OpImplAst + EvalCost + SymCost + FindVars
   sem convTop cont =
   | LetImplOTop x -> TmOpImpl
     { ident = x.n.v
@@ -144,7 +144,9 @@ lang ConvertLetImplOTop = ConvertOCamlToMExpr + LetImplOTopAst + OpImplAst + Eva
     , metaLevel = negi 1
     , selfCost = evalCost (symbolizeCost (convExpr x.cost))
     , body = convExpr x.body
-    , specType = optionMapOr tyunknown_ convType x.ty
+    , specType =
+      let ty = optionMapOr tyunknown_ convType x.ty in
+      foldr ntyall_ ty (setToSeq (findVars (setEmpty nameCmp) ty))
     , delayedReprUnifications = []
     , inexpr = cont
     , ty = tyunknown_
@@ -277,6 +279,24 @@ end
 lang ConvertUnitOExpr = ConvertOCamlToMExpr + UnitOExprAst
   sem convExpr =
   | UnitOExpr x -> withInfo x.info unit_
+end
+
+lang ConvertScaleBaseOExpr = ConvertOCamlToMExpr + ScaleBaseOExprAst + AppOExprAst + VarOExprAst + EvalCost + SymCost + OpVarAst
+  sem convExpr =
+  | AppOExpr
+    { left = AppOExpr
+      { left = ScaleBaseOExpr _
+      , right = cost
+      }
+    , right = VarOExpr x
+    , info = info
+    } -> TmOpVar
+      { ident = x.n.v
+      , ty = tyunknown_
+      , info = info
+      , frozen = false
+      , scaling = evalCost (symbolizeCost (convExpr cost))
+      }
 end
 
 lang ConvertIfOExpr = ConvertOCamlToMExpr + IfOExprAst
@@ -570,6 +590,21 @@ lang ConvertWildOType = ConvertOCamlToMExpr + WildOTypeAst + TyWildAst
   | WildOType x -> TyWild {info = x.info}
 end
 
+lang ConvertSubstOType = ConvertOCamlToMExpr + SubstOTypeAst + AppOTypeAst + ReprSubstAst + TyWildAst + ReprTypeAst
+  sem convType =
+  | SubstOType x -> TySubst
+    { info = x.info
+    , arg =
+      let mkRepr = lam. TyRepr
+        { info = x.info
+        , arg = TyWild {info = x.info}
+        , repr = ref (UninitRepr ())
+        } in
+      optionMapOrElse mkRepr convType x.ty
+    , subst = x.n.v
+    }
+end
+
 lang ConvertAppOType = ConvertOCamlToMExpr + AppOTypeAst + CommaOTypeAst + OpaqueOCamlAst
   sem convType =
   | AppOType x ->
@@ -645,6 +680,7 @@ lang ComposedConvertOCamlToMExpr
   + ConvertOrOPat
   + ConvertPatOParam
   + ConvertReprOTop
+  + ConvertScaleBaseOExpr
   + ConvertSemiOExpr
   + ConvertSimpleOBinding
   + ConvertSimpleOTyBinding
@@ -652,6 +688,7 @@ lang ComposedConvertOCamlToMExpr
   + ConvertStringOPat
   + ConvertSubfOExpr
   + ConvertSubiOExpr
+  + ConvertSubstOType
   + ConvertTrueOExpr
   + ConvertTrueOPat
   + ConvertTupOExpr

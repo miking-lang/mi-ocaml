@@ -21,14 +21,14 @@ lang MCoreCompile =
   ComposedConvertOCamlToMExpr +
   MExprCmp +
   MExprSym + MExprTypeCheck +
-  MExprPrettyPrint +
+  MExprPrettyPrintWithReprs +
   MExprLowerNestedPatterns +
   MCoreCompileLang + PhaseStats +
   RepTypesFragments +
   DumpRepTypesProblem +
   PrintMostFrequentRepr +
   PprintTyAnnot + HtmlAnnotator +
-  MExprEval +
+  MExprEval + MetaVarTypePrettyPrint +
 
   OCamlPrelude + LogfBuiltin +
   OCamlExtrasPprint + OCamlExtrasTypeCheck + ShallowOCamlExtras + OCamlExtrasGenerate
@@ -37,7 +37,23 @@ end
 lang RepAnalysis = MExprRepTypesAnalysis + MExprCmp + MExprPrettyPrint + OCamlExtrasTypeCheck + OCamlExtrasPprint
 end
 
-lang MExprRepTypesComposedSolver = RepTypesComposedSolver + MExprAst + MExprPrettyPrint + RepTypesAst + OCamlExtrasPprint
+lang MExprRepTypesComposedSolver
+  = RepTypesComposedSolver
+  + MExprAst
+  + MExprPrettyPrintWithReprs
+  + RepTypesAst
+  + OCamlExtrasPprint
+  + MetaVarTypePrettyPrint
+  + MetaVarTypeGeneralize
+  + VarTypeGeneralize
+  + AllTypeGeneralize
+  + MExprUnify
+  + ReprTypeUnify
+  + TyWildUnify
+  + OCamlExtrasTypeCheck
+
+  sem getTypeStringCode indent env =
+  | ty -> errorSingle [infoTy ty] "Missing getTypeStringCode"
 end
 
 mexpr
@@ -48,6 +64,7 @@ let options =
   { olibs = []
   , clibs = []
   , debugMExpr = None ()
+  , debugSolver = false
   , destinationFile = None ()
   , jsonPath = None ()
   } in
@@ -75,6 +92,10 @@ let argConfig =
         costSetVar (nameNoSym name) (float_ (string2float value));
         p.options
       else error "A binding must have the form \"<name>=<value>\"."
+    )
+  , ( [("--debug-solver", "", "")]
+    , "Print debug information about the state of the solver after each letimpl."
+    , lam p. { p.options with debugSolver = true }
     )
   , ( [("--constraints-json", " ", "<path>")]
     , "Output the connections between representations and operations in JSON format."
@@ -110,7 +131,7 @@ let ast = use RepAnalysis in typeCheckLeaveMeta ast in
    dumpRepTypesProblem jsonPath ast
  else ());
 
-let ast = use MExprRepTypesComposedSolver in reprSolve ast in
+let ast = use MExprRepTypesComposedSolver in reprSolve options.debugSolver ast in
 let ast = removeMetaVarExpr ast in
 let ast = lowerAll ast in
 
