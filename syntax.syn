@@ -160,14 +160,14 @@ prod Matching : OExpr =
     arms:{"|" pat:OPat "->" body:OExpr}*
   "end"
 
-infix left Addi : OExpr = "+"
-infix left Addf : OExpr = "+."
-infix left Subi : OExpr = "-"
-infix left Subf : OExpr = "-."
-infix left Muli : OExpr = "*"
-infix left Mulf : OExpr = "*."
-infix left Divi : OExpr = "/"
-infix left Divf : OExpr = "/."
+infix left Addi : OExpr = op:"+"
+infix left Addf : OExpr = op:"+."
+infix left Subi : OExpr = op:"-"
+infix left Subf : OExpr = op:"-."
+infix left Muli : OExpr = op:"*"
+infix left Mulf : OExpr = op:"*."
+infix left Divi : OExpr = op:"/"
+infix left Divf : OExpr = op:"/."
 
 infix left Tup : OExpr = ","
 infix left App : OExpr = empty

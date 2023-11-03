@@ -317,42 +317,66 @@ end
 
 lang ConvertAddiOExpr = ConvertOCamlToMExpr + AddiOExprAst + ArithIntAst
   sem convExpr =
-  | AddiOExpr x -> withInfo x.info (uconst_ (CAddi ()))
+  | AddiOExpr x -> withInfo x.info (appf2_
+    (withInfo x.op (uconst_ (CAddi ())))
+    (convExpr x.left)
+    (convExpr x.right))
 end
 
 lang ConvertSubiOExpr = ConvertOCamlToMExpr + SubiOExprAst + ArithIntAst
   sem convExpr =
-  | SubiOExpr x -> withInfo x.info (uconst_ (CSubi ()))
+  | SubiOExpr x -> withInfo x.info (appf2_
+    (withInfo x.op (uconst_ (CSubi ())))
+    (convExpr x.left)
+    (convExpr x.right))
 end
 
 lang ConvertMuliOExpr = ConvertOCamlToMExpr + MuliOExprAst + ArithIntAst
   sem convExpr =
-  | MuliOExpr x -> withInfo x.info (uconst_ (CMuli ()))
+  | MuliOExpr x -> withInfo x.info (appf2_
+    (withInfo x.op (uconst_ (CMuli ())))
+    (convExpr x.left)
+    (convExpr x.right))
 end
 
 lang ConvertDiviOExpr = ConvertOCamlToMExpr + DiviOExprAst + ArithIntAst
   sem convExpr =
-  | DiviOExpr x -> withInfo x.info (uconst_ (CDivi ()))
+  | DiviOExpr x -> withInfo x.info (appf2_
+    (withInfo x.op (uconst_ (CDivi ())))
+    (convExpr x.left)
+    (convExpr x.right))
 end
 
 lang ConvertAddfOExpr = ConvertOCamlToMExpr + AddfOExprAst + ArithFloatAst
   sem convExpr =
-  | AddfOExpr x -> withInfo x.info (uconst_ (CAddf ()))
+  | AddfOExpr x -> withInfo x.info (appf2_
+    (withInfo x.op (uconst_ (CAddf ())))
+    (convExpr x.left)
+    (convExpr x.right))
 end
 
 lang ConvertSubfOExpr = ConvertOCamlToMExpr + SubfOExprAst + ArithFloatAst
   sem convExpr =
-  | SubfOExpr x -> withInfo x.info (uconst_ (CSubf ()))
+  | SubfOExpr x -> withInfo x.info (appf2_
+    (withInfo x.op (uconst_ (CSubf ())))
+    (convExpr x.left)
+    (convExpr x.right))
 end
 
 lang ConvertMulfOExpr = ConvertOCamlToMExpr + MulfOExprAst + ArithFloatAst
   sem convExpr =
-  | MulfOExpr x -> withInfo x.info (uconst_ (CMulf ()))
+  | MulfOExpr x -> withInfo x.info (appf2_
+    (withInfo x.op (uconst_ (CMulf ())))
+    (convExpr x.left)
+    (convExpr x.right))
 end
 
 lang ConvertDivfOExpr = ConvertOCamlToMExpr + DivfOExprAst + ArithFloatAst
   sem convExpr =
-  | DivfOExpr x -> withInfo x.info (uconst_ (CDivf ()))
+  | DivfOExpr x -> withInfo x.info (appf2_
+    (withInfo x.op (uconst_ (CDivf ())))
+    (convExpr x.left)
+    (convExpr x.right))
 end
 
 lang ConvertTupOExpr = ConvertOCamlToMExpr + TupOExprAst
