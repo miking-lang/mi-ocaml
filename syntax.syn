@@ -149,8 +149,6 @@ prod List : OExpr = "[" unbrokenElems:OExpr? "]"
 prod Array : OExpr = "[|" unbrokenElems:OExpr? "|]"
 prod Unit : OExpr = "()"
 
-prefix Negi : OExpr = "-"
-prefix Negf : OExpr = "-."
 prod If : OExpr = "if" c:OExpr "then" t:OExpr "else" e:OExpr
 prod Let : OExpr =
   "let" rec:"rec"? bindings:OBinding ("and" bindings:OBinding)*
@@ -161,6 +159,15 @@ prod Matching : OExpr =
     "|"? arms:{pat:OPat "->" body:OExpr}
     arms:{"|" pat:OPat "->" body:OExpr}*
   "end"
+
+infix left Addi : OExpr = "+"
+infix left Addf : OExpr = "+."
+infix left Subi : OExpr = "-"
+infix left Subf : OExpr = "-."
+infix left Muli : OExpr = "*"
+infix left Mulf : OExpr = "*."
+infix left Divi : OExpr = "/"
+infix left Divf : OExpr = "/."
 
 infix left Tup : OExpr = ","
 infix left App : OExpr = empty
@@ -175,15 +182,20 @@ postfix Access : OExpr = "."
   | "(" idx:OExpr ")"
   )
 
+-- NOTE(vipa, 2023-11-03): I drop some precedences here to force
+-- clarification in some potentially confusing situations
 precedence {
   Access;
   App;
-  Negi Negf;
-  ~Or And;  -- Just because
+  Muli Mulf Divi Divf;
+  Addi Addf Subi Subf;
+  ~Or And;
   Tup;
   If;
   Semi;
   Let Fun;
+} except {
+  Muli Mulf ? Divi Divf;
 }
 
 -- Patterns

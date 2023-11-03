@@ -28,8 +28,9 @@ lang MCoreCompile =
   DumpRepTypesProblem +
   PrintMostFrequentRepr +
   PprintTyAnnot + HtmlAnnotator +
+  MExprEval +
 
-  OCamlPrelude +
+  OCamlPrelude + LogfBuiltin +
   OCamlExtrasPprint + OCamlExtrasTypeCheck + ShallowOCamlExtras + OCamlExtrasGenerate
 end
 
@@ -68,6 +69,13 @@ let argConfig =
     , "Output an interactive (html) pprinted version of the AST just after conversion to MExpr."
     , lam p. { p.options with debugMExpr = Some (argToString p) }
     )
+  , ( [("--define", " ", "<binding>")]
+    , "Define a constant to be used in impl costs."
+    , lam p. match strSplit "=" (argToString p) with [name, value] then
+        costSetVar (nameNoSym name) (float_ (string2float value));
+        p.options
+      else error "A binding must have the form \"<name>=<value>\"."
+    )
   , ( [("--constraints-json", " ", "<path>")]
     , "Output the connections between representations and operations in JSON format."
     , lam p. { p.options with jsonPath = Some (argToString p) }
@@ -82,6 +90,8 @@ match
     else error (concat "Need exactly one positional argument (the .ml file to compile), got: " (strJoin ", " res.strings))
   else argPrintError res
 with (options, mlFile) in
+
+costSetVar (nameNoSym "log") (uconst_ (CLogf ()));
 
 let parseOCamlExn : String -> String -> OFile = parseOCamlExn in
 match parseOCamlExn mlFile (readFile mlFile) with TopsOFile {tops = ast} in

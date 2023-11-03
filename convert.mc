@@ -1,6 +1,7 @@
 include "mexpr/ast.mc"
 include "syntax.mc"
 include "ast.mc"
+include "cost.mc"
 
 lang ConvertOCamlToMExpr = Ast + OCamlBaseAst
   sem ocamlToMExpr : [OTop] -> Expr
@@ -134,14 +135,14 @@ lang ConvertLetOpOTop = ConvertOCamlToMExpr + LetOpOTopAst + OpDeclAst + FindVar
     }
 end
 
-lang ConvertLetImplOTop = ConvertOCamlToMExpr + LetImplOTopAst + OpImplAst
+lang ConvertLetImplOTop = ConvertOCamlToMExpr + LetImplOTopAst + OpImplAst + EvalCost + SymCost
   sem convTop cont =
   | LetImplOTop x -> TmOpImpl
     { ident = x.n.v
     , implId = negi 1
     , reprScope = negi 1
     , metaLevel = negi 1
-    , selfCost = never
+    , selfCost = evalCost (symbolizeCost (convExpr x.cost))
     , body = convExpr x.body
     , specType = optionMapOr tyunknown_ convType x.ty
     , delayedReprUnifications = []
@@ -278,16 +279,6 @@ lang ConvertUnitOExpr = ConvertOCamlToMExpr + UnitOExprAst
   | UnitOExpr x -> withInfo x.info unit_
 end
 
-lang ConvertNegiOExpr = ConvertOCamlToMExpr + NegiOExprAst
-  sem convExpr =
-  | NegiOExpr x -> withInfo x.info (negi_ (convExpr x.right))
-end
-
-lang ConvertNegfOExpr = ConvertOCamlToMExpr + NegfOExprAst
-  sem convExpr =
-  | NegfOExpr x -> withInfo x.info (negf_ (convExpr x.right))
-end
-
 lang ConvertIfOExpr = ConvertOCamlToMExpr + IfOExprAst
   sem convExpr =
   | IfOExpr x -> withInfo x.info (if_ (convExpr x.c) (convExpr x.t) (convExpr x.e))
@@ -322,6 +313,46 @@ lang ConvertMatchingOExpr = ConvertOCamlToMExpr + MatchingOExprAst + LetAst
     , ty = tyunknown_
     , info = x.info
     }
+end
+
+lang ConvertAddiOExpr = ConvertOCamlToMExpr + AddiOExprAst + ArithIntAst
+  sem convExpr =
+  | AddiOExpr x -> withInfo x.info (uconst_ (CAddi ()))
+end
+
+lang ConvertSubiOExpr = ConvertOCamlToMExpr + SubiOExprAst + ArithIntAst
+  sem convExpr =
+  | SubiOExpr x -> withInfo x.info (uconst_ (CSubi ()))
+end
+
+lang ConvertMuliOExpr = ConvertOCamlToMExpr + MuliOExprAst + ArithIntAst
+  sem convExpr =
+  | MuliOExpr x -> withInfo x.info (uconst_ (CMuli ()))
+end
+
+lang ConvertDiviOExpr = ConvertOCamlToMExpr + DiviOExprAst + ArithIntAst
+  sem convExpr =
+  | DiviOExpr x -> withInfo x.info (uconst_ (CDivi ()))
+end
+
+lang ConvertAddfOExpr = ConvertOCamlToMExpr + AddfOExprAst + ArithFloatAst
+  sem convExpr =
+  | AddfOExpr x -> withInfo x.info (uconst_ (CAddf ()))
+end
+
+lang ConvertSubfOExpr = ConvertOCamlToMExpr + SubfOExprAst + ArithFloatAst
+  sem convExpr =
+  | SubfOExpr x -> withInfo x.info (uconst_ (CSubf ()))
+end
+
+lang ConvertMulfOExpr = ConvertOCamlToMExpr + MulfOExprAst + ArithFloatAst
+  sem convExpr =
+  | MulfOExpr x -> withInfo x.info (uconst_ (CMulf ()))
+end
+
+lang ConvertDivfOExpr = ConvertOCamlToMExpr + DivfOExprAst + ArithFloatAst
+  sem convExpr =
+  | DivfOExpr x -> withInfo x.info (uconst_ (CDivf ()))
 end
 
 lang ConvertTupOExpr = ConvertOCamlToMExpr + TupOExprAst
@@ -548,60 +579,66 @@ end
 -- Compose it all --
 
 lang ComposedConvertOCamlToMExpr
-  = ConvertTypeOTop
-  + ConvertLetOpOTop
-  + ConvertLetImplOTop
-  + ConvertReprOTop
-  + ConvertSimpleOTyBinding
-  + ConvertNameOParam
-  + ConvertIgnoreOParam
-  + ConvertSimpleOBinding
-  + ConvertVarOExpr
-  + ConvertPatOParam
-  + ConvertVarOExpr
-  + ConvertNumOExpr
-  + ConvertStringOExpr
-  + ConvertCharOExpr
-  + ConvertTrueOExpr
-  + ConvertFalseOExpr
-  + ConvertConOExpr
-  + ConvertListOExpr
-  + ConvertArrayOExpr
-  + ConvertUnitOExpr
-  + ConvertNegiOExpr
-  + ConvertNegfOExpr
-  + ConvertIfOExpr
-  + ConvertLetOExpr
-  + ConvertFunOExpr
-  + ConvertMatchingOExpr
-  + ConvertTupOExpr
-  + ConvertAppOExpr
-  + ConvertConsOExpr
-  + ConvertSemiOExpr
-  + ConvertOrOExpr
+  = ConvertAccessOExpr
+  + ConvertAddfOExpr
+  + ConvertAddiOExpr
   + ConvertAndOExpr
-  + ConvertAccessOExpr
-  + ConvertWildOPat
-  + ConvertBindOPat
-  + ConvertNumOPat
-  + ConvertStringOPat
-  + ConvertCharOPat
-  + ConvertTrueOPat
-  + ConvertFalseOPat
-  + ConvertConOPat
-  + ConvertListOPat
-  + ConvertArrayOPat
-  + ConvertUnitOPat
+  + ConvertAppOExpr
   + ConvertAppOPat
-  + ConvertOrOPat
-  + ConvertTupOPat
-  + ConvertConsOPat
-  + ConvertAsOPat
-  + ConvertVarOType
-  + ConvertConOType
-  + ConvertWildOType
   + ConvertAppOType
-  + ConvertTupOType
+  + ConvertArrayOExpr
+  + ConvertArrayOPat
   + ConvertArrowOType
+  + ConvertAsOPat
+  + ConvertBindOPat
+  + ConvertCharOExpr
+  + ConvertCharOPat
+  + ConvertConOExpr
+  + ConvertConOPat
+  + ConvertConOType
+  + ConvertConsOExpr
+  + ConvertConsOPat
+  + ConvertDivfOExpr
+  + ConvertDiviOExpr
+  + ConvertFalseOExpr
+  + ConvertFalseOPat
+  + ConvertFunOExpr
+  + ConvertIfOExpr
+  + ConvertIgnoreOParam
+  + ConvertLetImplOTop
+  + ConvertLetOExpr
+  + ConvertLetOpOTop
   + ConvertLetOTop
+  + ConvertListOExpr
+  + ConvertListOPat
+  + ConvertMatchingOExpr
+  + ConvertMulfOExpr
+  + ConvertMuliOExpr
+  + ConvertNameOParam
+  + ConvertNumOExpr
+  + ConvertNumOPat
+  + ConvertOrOExpr
+  + ConvertOrOPat
+  + ConvertPatOParam
+  + ConvertReprOTop
+  + ConvertSemiOExpr
+  + ConvertSimpleOBinding
+  + ConvertSimpleOTyBinding
+  + ConvertStringOExpr
+  + ConvertStringOPat
+  + ConvertSubfOExpr
+  + ConvertSubiOExpr
+  + ConvertTrueOExpr
+  + ConvertTrueOPat
+  + ConvertTupOExpr
+  + ConvertTupOPat
+  + ConvertTupOType
+  + ConvertTypeOTop
+  + ConvertUnitOExpr
+  + ConvertUnitOPat
+  + ConvertVarOExpr
+  + ConvertVarOExpr
+  + ConvertVarOType
+  + ConvertWildOPat
+  + ConvertWildOType
 end
