@@ -15,6 +15,7 @@ include "prelude.mc"
 include "type-check.mc"
 include "shallow-patterns.mc"
 include "generate.mc"
+include "cmp.mc"
 
 lang MCoreCompile =
   OCamlAst +
@@ -31,10 +32,11 @@ lang MCoreCompile =
   MExprEval + MetaVarTypePrettyPrint +
 
   OCamlPrelude + LogfBuiltin +
-  OCamlExtrasPprint + OCamlExtrasTypeCheck + ShallowOCamlExtras + OCamlExtrasGenerate
+  OCamlExtrasPprint + OCamlExtrasTypeCheck + ShallowOCamlExtras + OCamlExtrasGenerate +
+  OCamlExtrasCmp
 end
 
-lang RepAnalysis = MExprRepTypesAnalysis + MExprCmp + MExprPrettyPrint + OCamlExtrasTypeCheck + OCamlExtrasPprint
+lang RepAnalysis = MExprRepTypesAnalysis + MExprCmp + MExprPrettyPrintWithReprs + OCamlExtrasTypeCheck + OCamlExtrasPprint
 end
 
 lang MExprRepTypesComposedSolver
@@ -51,6 +53,8 @@ lang MExprRepTypesComposedSolver
   + ReprTypeUnify
   + TyWildUnify
   + OCamlExtrasTypeCheck
+  + MExprCmp
+  + OCamlExtrasCmp
 
   sem getTypeStringCode indent env =
   | ty -> errorSingle [infoTy ty] "Missing getTypeStringCode"
@@ -64,6 +68,7 @@ let options =
   { olibs = []
   , clibs = []
   , debugMExpr = None ()
+  , debugRepr = None ()
   , debugSolver = false
   , destinationFile = None ()
   , jsonPath = None ()
@@ -85,6 +90,10 @@ let argConfig =
   , ( [("--debug-mexpr", " ", "<path>")]
     , "Output an interactive (html) pprinted version of the AST just after conversion to MExpr."
     , lam p. { p.options with debugMExpr = Some (argToString p) }
+    )
+  , ( [("--debug-repr", " ", "<path>")]
+    , "Output an interactive (html) pprinted version of the AST just after repr solving."
+    , lam p. { p.options with debugRepr = Some (argToString p) }
     )
   , ( [("--define", " ", "<binding>")]
     , "Define a constant to be used in impl costs."
@@ -132,6 +141,11 @@ let ast = use RepAnalysis in typeCheckLeaveMeta ast in
  else ());
 
 let ast = use MExprRepTypesComposedSolver in reprSolve options.debugSolver ast in
+
+(match options.debugRepr with Some path then
+   writeFile path (pprintAst ast)
+ else ());
+
 let ast = removeMetaVarExpr ast in
 let ast = lowerAll ast in
 

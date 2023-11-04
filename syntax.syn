@@ -192,6 +192,7 @@ precedence {
   App;
   Muli Mulf Divi Divf;
   Addi Addf Subi Subf;
+  Cons;
   ~Or And;
   Tup;
   If;
