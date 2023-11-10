@@ -250,9 +250,14 @@ lang ConvertFalseOExpr = ConvertOCamlToMExpr + FalseOExprAst
   | FalseOExpr x -> withInfo x.info false_
 end
 
-lang ConvertConOExpr = ConvertOCamlToMExpr + ConOExprAst
+lang ConvertConOExpr = ConvertOCamlToMExpr + ConOExprAst + AppOExprAst
   sem convExpr =
   | ConOExpr x -> withInfo x.info (nconapp_ x.n.v unit_)
+  | AppOExpr
+    { left = ConOExpr c
+    , right = arg
+    , info = info
+    } -> withInfo info (nconapp_ c.n.v (convExpr arg))
 end
 
 lang UnbreakList = ConvertOCamlToMExpr + SemiOExprAst

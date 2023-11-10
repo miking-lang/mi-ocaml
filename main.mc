@@ -69,6 +69,7 @@ let options =
   , clibs = []
   , debugMExpr = None ()
   , debugRepr = None ()
+  , debugAnalysis = None ()
   , debugSolver = false
   , destinationFile = None ()
   , jsonPath = None ()
@@ -94,6 +95,10 @@ let argConfig =
   , ( [("--debug-repr", " ", "<path>")]
     , "Output an interactive (html) pprinted version of the AST just after repr solving."
     , lam p. { p.options with debugRepr = Some (argToString p) }
+    )
+  , ( [("--debug-analysis", " ", "<path>")]
+    , "Output an interactive (html) pprinted version of the AST just after repr analysis."
+    , lam p. { p.options with debugAnalysis = Some (argToString p) }
     )
   , ( [("--define", " ", "<binding>")]
     , "Define a constant to be used in impl costs."
@@ -136,6 +141,9 @@ let ast = symbolize ast in
 let ast = typeCheckLeaveMeta ast in
 let ast = use RepAnalysis in typeCheckLeaveMeta ast in
 
+(match options.debugAnalysis with Some path then
+   writeFile path (pprintAst ast)
+ else ());
 (match options.jsonPath with Some jsonPath then
    dumpRepTypesProblem jsonPath ast
  else ());
