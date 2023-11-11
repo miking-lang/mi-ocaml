@@ -70,11 +70,12 @@ let options =
   , debugMExpr = None ()
   , debugRepr = None ()
   , debugAnalysis = None ()
-  , debugSolver = false
+  , debugSolverState = false
+  , debugFinalSolution = false
+  , debugSolveProcess = false
   , destinationFile = None ()
   , jsonPath = None ()
   } in
-
 let argConfig =
   [ ( [("--olib", "", "")]
     , "Add a dependency on an Opam package."
@@ -107,9 +108,17 @@ let argConfig =
         p.options
       else error "A binding must have the form \"<name>=<value>\"."
     )
-  , ( [("--debug-solver", "", "")]
-    , "Print debug information about the state of the solver after each letimpl."
-    , lam p. { p.options with debugSolver = true }
+  , ( [("--debug-solver-state", "", "")]
+    , "Print debug information about the state of the solver after each op-use."
+    , lam p. { p.options with debugSolverState = true }
+    )
+  , ( [("--debug-final-solution", "", "")]
+    , "Print debug information about the final solution."
+    , lam p. { p.options with debugFinalSolution = true }
+    )
+  , ( [("--debug-solve-process", "", "")]
+    , "Print debug information about the solving process."
+    , lam p. { p.options with debugSolveProcess = true }
     )
   , ( [("--constraints-json", " ", "<path>")]
     , "Output the connections between representations and operations in JSON format."
@@ -148,7 +157,12 @@ let ast = use RepAnalysis in typeCheckLeaveMeta ast in
    dumpRepTypesProblem jsonPath ast
  else ());
 
-let ast = use MExprRepTypesComposedSolver in reprSolve options.debugSolver ast in
+let reprOptions =
+  { debugBranchState = options.debugSolverState
+  , debugFinalSolution = options.debugFinalSolution
+  , debugSolveProcess = options.debugSolveProcess
+  } in
+let ast = use MExprRepTypesComposedSolver in reprSolve reprOptions ast in
 
 (match options.debugRepr with Some path then
    writeFile path (pprintAst ast)
