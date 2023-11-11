@@ -11,6 +11,7 @@ lang OCamlPrelude = ReprTypeAst + OCamlListAst + OCamlStringAst
       , type_ "int" [] tyint_
       , type_ "float" [] tyfloat_
       , type_ "bool" [] tybool_
+      , type_ "unit" [] tyunit_
       ] in
     bindall_ (snoc bindings tm)
 end

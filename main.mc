@@ -77,11 +77,11 @@ let options =
   , jsonPath = None ()
   } in
 let argConfig =
-  [ ( [("--olib", "", "")]
+  [ ( [("--olib", " ", "<package>")]
     , "Add a dependency on an Opam package."
     , lam p. { p.options with olibs = snoc p.options.olibs (argToString p) }
     )
-  , ( [("--clib", "", "")]
+  , ( [("--clib", " ", "<c-library>")]
     , "Tell dune/ocamlopt to link these c-libraries."
     , lam p. { p.options with olibs = snoc p.options.olibs (argToString p) }
     )

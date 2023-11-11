@@ -39,17 +39,26 @@ end
 
 -- Helpers --
 
-lang MkBody = LamAst
+lang MkBody = LamAst + NamedPat
   sem mkBody : [Pat] -> Expr -> Expr
   sem mkBody params = | body -> foldr
     (lam pat. lam body.
-      let ident = nameSym "x" in
       let info = infoPat pat in
+      match switch pat
+        case PatNamed {ident = PName ident} then
+          (ident, body)
+        case PatNamed {ident = PWildcard _} then
+          (nameSym "x", body)
+        case pat then
+          let ident = nameSym "x" in
+          (ident, match_ (nvar_ ident) pat body (withInfo info never_))
+        end
+      with (ident, body) in
       TmLam
       { ident = ident
       , tyAnnot = tyunknown_
       , tyParam = tyunknown_
-      , body = match_ (nvar_ ident) pat body (withInfo info never_)
+      , body = body
       , ty = tyunknown_
       , info = mergeInfo info (infoTm body)
       })
