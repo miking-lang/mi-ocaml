@@ -74,6 +74,7 @@ let options =
   , debugSolverState = false
   , debugFinalSolution = false
   , debugSolveProcess = false
+  , debugSolveTiming = false
   , destinationFile = None ()
   , jsonPath = None ()
   } in
@@ -116,6 +117,10 @@ let argConfig =
   , ( [("--debug-solver-state", "", "")]
     , "Print debug information about the state of the solver after each op-use."
     , lam p. { p.options with debugSolverState = true }
+    )
+  , ( [("--debug-solve-timing", "", "")]
+    , "Print debug information about the state of the solver after each op-use."
+    , lam p. { p.options with debugSolveTiming = true }
     )
   , ( [("--debug-final-solution", "", "")]
     , "Print debug information about the final solution."
@@ -169,6 +174,7 @@ let ast =
       { debugBranchState = options.debugSolverState
       , debugFinalSolution = options.debugFinalSolution
       , debugSolveProcess = options.debugSolveProcess
+      , debugSolveTiming = options.debugSolveTiming
       } in
     let ast = use MExprRepTypesComposedSolver in reprSolve reprOptions ast in
 
