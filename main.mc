@@ -67,6 +67,7 @@ use MCoreCompile in
 let options =
   { olibs = []
   , clibs = []
+  , useRepr = true
   , debugMExpr = None ()
   , debugRepr = None ()
   , debugAnalysis = None ()
@@ -84,6 +85,10 @@ let argConfig =
   , ( [("--clib", " ", "<c-library>")]
     , "Tell dune/ocamlopt to link these c-libraries."
     , lam p. { p.options with olibs = snoc p.options.olibs (argToString p) }
+    )
+  , ( [("--no-repr", "", "")]
+    , "Turn of the repr-passes (i.e., programs that contain repr will fail to compile, possibly loudly)."
+    , lam p. { p.options with useRepr = false }
     )
   , ( [("--output", " ", "<path>")]
     , "Place the final executable here."
@@ -148,25 +153,31 @@ let ast = wrapInPrelude ast in
 
 let ast = symbolize ast in
 let ast = typeCheckLeaveMeta ast in
-let ast = use RepAnalysis in typeCheckLeaveMeta ast in
 
-(match options.debugAnalysis with Some path then
-   writeFile path (pprintAst ast)
- else ());
-(match options.jsonPath with Some jsonPath then
-   dumpRepTypesProblem jsonPath ast
- else ());
+let ast =
+  if options.useRepr then
+    let ast = use RepAnalysis in typeCheckLeaveMeta ast in
 
-let reprOptions =
-  { debugBranchState = options.debugSolverState
-  , debugFinalSolution = options.debugFinalSolution
-  , debugSolveProcess = options.debugSolveProcess
-  } in
-let ast = use MExprRepTypesComposedSolver in reprSolve reprOptions ast in
+    (match options.debugAnalysis with Some path then
+       writeFile path (pprintAst ast)
+     else ());
+    (match options.jsonPath with Some jsonPath then
+       dumpRepTypesProblem jsonPath ast
+     else ());
 
-(match options.debugRepr with Some path then
-   writeFile path (pprintAst ast)
- else ());
+    let reprOptions =
+      { debugBranchState = options.debugSolverState
+      , debugFinalSolution = options.debugFinalSolution
+      , debugSolveProcess = options.debugSolveProcess
+      } in
+    let ast = use MExprRepTypesComposedSolver in reprSolve reprOptions ast in
+
+    (match options.debugRepr with Some path then
+       writeFile path (pprintAst ast)
+     else ());
+    ast
+  else ast
+in
 
 let ast = removeMetaVarExpr ast in
 let ast = lowerAll ast in
