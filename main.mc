@@ -87,13 +87,15 @@ let argConfig =
     , "Tell dune/ocamlopt to link these c-libraries."
     , lam p. { p.options with olibs = snoc p.options.olibs (argToString p) }
     )
-  , ( [("--no-repr", "", "")]
-    , "Turn of the repr-passes (i.e., programs that contain repr will fail to compile, possibly loudly)."
-    , lam p. { p.options with useRepr = false }
-    )
   , ( [("--output", " ", "<path>")]
     , "Place the final executable here."
     , lam p. { p.options with destinationFile = Some (argToString p) }
+    )
+
+  -- Reptypes related options
+  , ( [("--no-repr", "", "")]
+    , "Turn of the repr-passes (i.e., programs that contain repr will fail to compile, possibly loudly)."
+    , lam p. { p.options with useRepr = false }
     )
   , ( [("--debug-mexpr", " ", "<path>")]
     , "Output an interactive (html) pprinted version of the AST just after conversion to MExpr."
