@@ -17,44 +17,66 @@ include "shallow-patterns.mc"
 include "generate.mc"
 include "cmp.mc"
 
-lang MCoreCompile =
-  OCamlAst +
-  ComposedConvertOCamlToMExpr +
-  MExprCmp +
-  MExprSym + MExprTypeCheck +
-  MExprPrettyPrintWithReprs +
-  MExprLowerNestedPatterns +
-  MCoreCompileLang + PhaseStats +
-  RepTypesFragments +
-  DumpRepTypesProblem +
-  PrintMostFrequentRepr +
-  PprintTyAnnot + HtmlAnnotator +
-  MExprEval + MetaVarTypePrettyPrint +
-
-  OCamlPrelude + LogfBuiltin +
-  OCamlExtrasPprint + OCamlExtrasTypeCheck + ShallowOCamlExtras + OCamlExtrasGenerate +
-  OCamlExtrasCmp
+lang MCoreCompile
+  = OCamlAst
+  + ComposedConvertOCamlToMExpr
+  + DumpRepTypesProblem
+  + HtmlAnnotator
+  + LogfBuiltin
+  + MCoreCompileLang
+  + MetaVarTypePrettyPrint
+  + MExprCmp
+  + MExprEval
+  + MExprLowerNestedPatterns
+  + MExprPrettyPrint
+  + MExprSym
+  + MExprTypeCheck
+  + OCamlExtrasCmp
+  + OCamlExtrasGenerate
+  + OCamlExtrasPprint
+  + OCamlExtrasTypeCheck
+  + OCamlPrelude
+  + PhaseStats
+  + PprintTyAnnot
+  + PrintMostFrequentRepr
+  + RepTypesCmp
+  + RepTypesFragments
+  + RepTypesPrettyPrint
+  + RepTypesSym
+  + RepTypesTypeCheck
+  + ShallowOCamlExtras
 end
 
-lang RepAnalysis = MExprRepTypesAnalysis + MExprCmp + MExprPrettyPrintWithReprs + OCamlExtrasTypeCheck + OCamlExtrasPprint
+lang RepAnalysis
+  = MExprRepTypesAnalysis
+  + MExprCmp
+  + RepTypesCmp
+  + MExprPrettyPrint
+  + RepTypesPrettyPrint
+  + OCamlExtrasTypeCheck
+  + OCamlExtrasPprint
+  sem typeCheckExpr env =
+  | tm -> errorSingle [infoTm tm] "Missing typeCheckExpr"
 end
 
 lang MExprRepTypesComposedSolver
-  = RepTypesComposedSolver
-  + MExprAst
-  + MExprPrettyPrintWithReprs
-  + RepTypesAst
-  + OCamlExtrasPprint
-  + MetaVarTypePrettyPrint
+  = AllTypeGeneralize
   + MetaVarTypeGeneralize
-  + VarTypeGeneralize
-  + AllTypeGeneralize
-  + MExprUnify
-  + ReprTypeUnify
-  + TyWildUnify
-  + OCamlExtrasTypeCheck
+  + MetaVarTypePrettyPrint
+  + MExprAst
   + MExprCmp
+  + MExprPrettyPrint
+  + MExprUnify
   + OCamlExtrasCmp
+  + OCamlExtrasPprint
+  + OCamlExtrasTypeCheck
+  + ReprTypeUnify
+  + RepTypesAst
+  + RepTypesCmp
+  + RepTypesComposedSolver
+  + RepTypesPrettyPrint
+  + TyWildUnify
+  + VarTypeGeneralize
 
   sem getTypeStringCode indent env =
   | ty -> errorSingle [infoTy ty] "Missing getTypeStringCode"
