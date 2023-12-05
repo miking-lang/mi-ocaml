@@ -55,8 +55,6 @@ lang RepAnalysis
   + RepTypesPrettyPrint
   + OCamlExtrasTypeCheck
   + OCamlExtrasPprint
-  sem typeCheckExpr env =
-  | tm -> errorSingle [infoTm tm] "Missing typeCheckExpr"
 end
 
 lang MExprRepTypesComposedSolver

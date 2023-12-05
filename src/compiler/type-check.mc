@@ -1,6 +1,6 @@
 include "mexpr/type-check.mc"
 
-lang OpaqueOCamlTypeCheck = TypeCheck + OpaqueOCamlAst + CompatibleType
+lang OpaqueOCamlTypeCheck = TypeCheck + OpaqueOCamlAst + CompatibleType + TypeAnnot + MatchTypeAnnot + PatTypeCheck
   sem typeCheckExpr env =
   | TmOpaqueOCaml x ->
     TmOpaqueOCaml {x with ty = newmonovar env.currentLvl x.info}
@@ -29,7 +29,7 @@ lang OpaqueOCamlTypeCheck = TypeCheck + OpaqueOCamlAst + CompatibleType
   | pat & PatOpaqueOCamlCon _ -> (env, pat)
 end
 
-lang OCamlStringTypeCheck = TypeCheck + Unify + OCamlStringAst + CompatibleType
+lang OCamlStringTypeCheck = TypeCheck + Unify + OCamlStringAst + CompatibleType + MatchTypeAnnot + PatTypeCheck
   sem typeCheckPat env patEnv =
   | PatOString x ->
     (patEnv, PatOString {x with ty = TyOString {info = x.info}})
@@ -44,7 +44,7 @@ lang OCamlStringTypeCheck = TypeCheck + Unify + OCamlStringAst + CompatibleType
   | pat & PatOString _ -> (env, pat)
 end
 
-lang OCamlListTypeCheck = TypeCheck + Unify + OCamlListAst + CompatibleType
+lang OCamlListTypeCheck = TypeCheck + Unify + OCamlListAst + CompatibleType + MatchTypeAnnot + PatTypeCheck
   sem typeCheckPat env patEnv =
   | PatOCons x ->
     match typeCheckPat env patEnv x.head with (patEnv, head) in

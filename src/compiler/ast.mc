@@ -44,7 +44,7 @@ lang OpaqueOCamlAst = Ast
     (acc, PatOpaqueOCamlCon {x with arg = arg})
 end
 
-lang OCamlStringAst = Ast
+lang OCamlStringAst = Ast + ConstAst + TyConst
   -- Constant
   syn Const =
   | COString {val : String}
@@ -76,7 +76,7 @@ lang OCamlStringAst = Ast
   | PatOString x -> PatOString {x with ty = ty}
 end
 
-lang OCamlListAst = Ast
+lang OCamlListAst = Ast + ConstAst + TyConst
   -- Constant
   syn Const =
   | CONil ()
