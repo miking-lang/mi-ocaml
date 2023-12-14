@@ -139,6 +139,11 @@ lang ComposedMemoedTopDownSolver
   + MemoedTopDownSolver
 end
 
+lang ComposedPaperSolver
+  = MExprRepTypesSolverBase
+  + PaperSolver
+end
+
 mexpr
 
 use MCoreCompile in
@@ -148,6 +153,7 @@ con SATishSolver : () -> SolverOption in
 con LazyTopDownSolver : () -> SolverOption in
 con MemoedTopDownSolver : () -> SolverOption in
 con SolTreeLazySolver : () -> SolverOption in
+con PaperSolver : () -> SolverOption in
 
 let options =
   { olibs = []
@@ -214,6 +220,7 @@ let argConfig =
         [ ("sat", SATishSolver ())
         , ("lazy-greed", LazyTopDownSolver ())
         , ("top-down", MemoedTopDownSolver ())
+        , ("paper", PaperSolver ())
         , ("mixed-sat-lazy-greed", SolTreeLazySolver ())
         ] in
       let reprSolver = argToString p in
@@ -359,6 +366,7 @@ let ast =
       case LazyTopDownSolver _ then use ComposedLazyTopDownSolver in reprSolve reprOptions ast
       case MemoedTopDownSolver _ then use ComposedMemoedTopDownSolver in reprSolve reprOptions ast
       case SolTreeLazySolver _ then use ComposedMixedSolver in reprSolve reprOptions ast
+      case PaperSolver _ then use ComposedPaperSolver in reprSolve reprOptions ast
       end in
 
     (match options.debugRepr with Some path then
