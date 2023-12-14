@@ -123,6 +123,12 @@ lang ComposedSATIshSolver
   + SATishSolver
 end
 
+lang ComposedMixedSolver
+  = MExprRepTypesSolverBase
+  + SolTreeLazySolver
+  + SATishSolver
+end
+
 lang ComposedLazyTopDownSolver
   = MExprRepTypesSolverBase
   + LazyTopDownSolver
@@ -141,6 +147,7 @@ type SolverOption in
 con SATishSolver : () -> SolverOption in
 con LazyTopDownSolver : () -> SolverOption in
 con MemoedTopDownSolver : () -> SolverOption in
+con SolTreeLazySolver : () -> SolverOption in
 
 let options =
   { olibs = []
@@ -207,6 +214,7 @@ let argConfig =
         [ ("sat", SATishSolver ())
         , ("lazy-greed", LazyTopDownSolver ())
         , ("top-down", MemoedTopDownSolver ())
+        , ("mixed-sat-lazy-greed", SolTreeLazySolver ())
         ] in
       let reprSolver = argToString p in
       match mapLookup reprSolver mapping with Some reprSolver
@@ -350,6 +358,7 @@ let ast =
       case SATishSolver _ then use ComposedSATIshSolver in reprSolve reprOptions ast
       case LazyTopDownSolver _ then use ComposedLazyTopDownSolver in reprSolve reprOptions ast
       case MemoedTopDownSolver _ then use ComposedMemoedTopDownSolver in reprSolve reprOptions ast
+      case SolTreeLazySolver _ then use ComposedMixedSolver in reprSolve reprOptions ast
       end in
 
     (match options.debugRepr with Some path then
