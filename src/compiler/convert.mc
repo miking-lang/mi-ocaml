@@ -1,4 +1,6 @@
 include "mexpr/ast.mc"
+include "tuning/ast.mc"
+
 include "syntax.mc"
 include "ast.mc"
 include "cost.mc"
@@ -472,6 +474,69 @@ lang ConvertAccessOExpr = ConvertOCamlToMExpr + AccessOExprAst + ConOExprAst + O
   | tm -> errorSingle [get_OExpr_info tm] "Expected a module name here"
 end
 
+lang ConvertHoleOExpr = ConvertOCamlToMExpr + HoleOExprAst + HoleAst
+  sem convExpr =
+  | HoleOExpr x ->
+    let errorFieldMultipleDefs = lam i. lam s.
+      errorSingle [i] (concat "Multiple definitions of " s)
+    in
+
+    let expectMExprInt = lam i. lam e.
+      match convExpr e with TmConst {val = CInt v} then v.val
+      else errorSingle [i] "Expected an integer"
+    in
+
+    let parseField = lam acc. lam field.
+      switch nameGetStr field.name.v
+      case "default" then
+        if optionIsNone acc.default then {acc with default = Some field}
+        else errorFieldMultipleDefs field.name.i "default"
+      case "min" then
+        if optionIsNone acc.min then {acc with min = Some field}
+        else errorFieldMultipleDefs field.name.i "min"
+      case "max" then
+        if optionIsNone acc.max then {acc with max = Some field}
+        else errorFieldMultipleDefs field.name.i "max"
+      case "depth" then
+        if optionIsNone acc.depth then {acc with depth = Some field}
+        else errorFieldMultipleDefs field.name.i "depth"
+      case _ then errorSingle [field.name.i] "Unknown field"
+      end
+    in
+
+    let fields = foldl parseField
+      {default = None (), min = None (), max = None (), depth = None ()}
+      x.fields
+    in
+
+    let inner =
+      switch (fields.min, fields.max)
+      case (None (), None ()) then BoolHole {}
+      case (Some min, Some max) then
+        HIntRange
+        { min = expectMExprInt min.name.i min.val
+        , max = expectMExprInt max.name.i max.val
+        }
+      case _ then errorSingle [x.info] "Did you forget to specify min or max?"
+      end
+    in
+
+    let default =
+      optionMapOrElse
+        (lam. errorSingle [x.info] "Missing default")
+        (lam d. convExpr d.val)
+        fields.default
+    in
+
+    TmHole
+    { inner = inner
+    , default = default
+    , info = x.info
+    , ty = tyunknown_
+    , depth = optionMapOr 0 (lam d. expectMExprInt x.info d.val) fields.depth
+    }
+end
+
 -- Patterns --
 
 lang ConvertWildOPat = ConvertOCamlToMExpr + WildOPatAst
@@ -657,6 +722,7 @@ lang ComposedConvertOCamlToMExpr
   + ConvertAddiOExpr
   + ConvertAndOExpr
   + ConvertAppOExpr
+  + ConvertHoleOExpr
   + ConvertAppOPat
   + ConvertAppOType
   + ConvertArrayOExpr
