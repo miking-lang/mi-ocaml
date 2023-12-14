@@ -72,7 +72,7 @@ lang RepAnalysis
   + OCamlExtrasPprint
 end
 
-lang MExprRepTypesComposedSolver
+lang MExprRepTypesSolverBase
   = AllTypeGeneralize
   + MetaVarTypeGeneralize
   + MetaVarTypePrettyPrint
@@ -86,8 +86,8 @@ lang MExprRepTypesComposedSolver
   + ReprTypeUnify
   + RepTypesAst
   + RepTypesCmp
-  + RepTypesComposedSolver
   + RepTypesPrettyPrint
+  + RepTypesSolveAndReconstruct
   + TyWildUnify
   + VarTypeGeneralize
 
@@ -117,13 +117,36 @@ lang MExprTuneANFAll
   + OCamlExtrasANF
 end
 
+lang ComposedSATIshSolver
+  = MExprRepTypesSolverBase
+  + SolTreeSoloSolver
+  + SATishSolver
+end
+
+lang ComposedLazyTopDownSolver
+  = MExprRepTypesSolverBase
+  + LazyTopDownSolver
+end
+
+lang ComposedMemoedTopDownSolver
+  = MExprRepTypesSolverBase
+  + MemoedTopDownSolver
+end
+
 mexpr
 
 use MCoreCompile in
 
+type SolverOption in
+con SATishSolver : () -> SolverOption in
+con LazyTopDownSolver : () -> SolverOption in
+con MemoedTopDownSolver : () -> SolverOption in
+
 let options =
   { olibs = []
   , clibs = []
+
+  , reprSolver = LazyTopDownSolver ()
   , useRepr = true
   , useTuning = true
   , debugMExpr = None ()
@@ -176,6 +199,24 @@ let argConfig =
   , ( [("--no-repr", "", "")]
     , "Turn off the repr-passes (i.e., programs that contain repr will fail to compile, possibly loudly)."
     , lam p. { p.options with useRepr = false }
+    )
+  , ( [("--repr-solver", " ", "<solver>")]
+    , "Pick the solver to use for picking letimpls"
+    , lam p.
+      let mapping = mapFromSeq cmpString
+        [ ("sat", SATishSolver ())
+        , ("lazy-greed", LazyTopDownSolver ())
+        , ("top-down", MemoedTopDownSolver ())
+        ] in
+      let reprSolver = argToString p in
+      match mapLookup reprSolver mapping with Some reprSolver
+      then { p.options with reprSolver = reprSolver }
+      else
+        printLn (concat "Unknown repr-solver: " reprSolver);
+        printLn (join
+          [ "Expected one of: ", strJoin ", " (mapKeys mapping)
+          ]);
+        exit 1
     )
   , ( [("--debug-repr", " ", "<path>")]
     , "Output an interactive (html) pprinted version of the AST just after repr solving."
@@ -305,7 +346,11 @@ let ast =
       , debugSolveProcess = options.debugSolveProcess
       , debugSolveTiming = options.debugSolveTiming
       } in
-    let ast = use MExprRepTypesComposedSolver in reprSolve reprOptions ast in
+    let ast = switch options.reprSolver
+      case SATishSolver _ then use ComposedSATIshSolver in reprSolve reprOptions ast
+      case LazyTopDownSolver _ then use ComposedLazyTopDownSolver in reprSolve reprOptions ast
+      case MemoedTopDownSolver _ then use ComposedMemoedTopDownSolver in reprSolve reprOptions ast
+      end in
 
     (match options.debugRepr with Some path then
        writeFile path (pprintAst ast)
