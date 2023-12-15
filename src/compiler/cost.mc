@@ -7,7 +7,7 @@ let costEvalEnv /- : Ref EvalEnv (defined in lang frag) -/ = use Eval in ref (ev
 let costSymEnv : Ref SymEnv = ref symEnvEmpty
 
 let costSetVar
-  : Name -> Expr -> ()
+  : Name -> use Ast in Expr -> ()
   = lam n. lam c.
     let n = if nameHasSym n then n else nameSetNewSym n in
     modref costSymEnv (
@@ -33,7 +33,7 @@ lang EvalCost = Eval + FloatAst + PrettyPrint
     end
 end
 
-lang LogfBuiltin = Ast + Eval + PrettyPrint + ConstArity + FloatAst
+lang LogfBuiltin = Ast + Eval + PrettyPrint + ConstArity + FloatAst + ConstDelta + ConstPrettyPrint
   syn Const =
   | CLogf ()
 

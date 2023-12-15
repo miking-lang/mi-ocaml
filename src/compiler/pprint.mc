@@ -2,7 +2,7 @@ include "mexpr/pprint.mc"
 
 include "ast.mc"
 
-lang OCamlStringPprint = PrettyPrint + OCamlStringAst
+lang OCamlStringPprint = PrettyPrint + OCamlStringAst + ConstPrettyPrint
   sem getConstStringCode indent =
   | COString x -> join ["\"", escapeString x.val, "\""]
 
@@ -35,7 +35,7 @@ lang OCamlOpaquePprint = PrettyPrint + OpaqueOCamlAst
     (env, join [x.content, match arg with Some arg then concat " " arg else ""])
 end
 
-lang OCamlListPprint = PrettyPrint + OCamlListAst
+lang OCamlListPprint = PrettyPrint + OCamlListAst + ConstPrettyPrint
   sem getConstStringCode indent =
   | CONil _ -> "[]"
   | COCons _ -> "(::)"
