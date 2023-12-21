@@ -2,7 +2,7 @@ include "mexpr/cfa.mc"
 
 include "ast.mc"
 
-lang OCamlStringCFA = CFA + ConstCFA + OCamlStringAst
+lang OCamlStringCFA = ConstCFA + OCamlStringAst
   sem generateConstraintsConst graph info ident =
   | COString _ -> graph
 end
@@ -13,7 +13,7 @@ lang OCamlOpaqueCFA = CFA + OpaqueOCamlAst
 
 end
 
-lang OCamlListCFA = PrettyPrint + OCamlListAst
+lang OCamlListCFA = ConstCFA + OCamlListAst
   sem generateConstraintsConst graph info ident =
   | CONil _ -> graph
   | COCons _ -> graph

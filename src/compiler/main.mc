@@ -90,19 +90,20 @@ lang MExprRepTypesComposedSolver
   | ty -> errorSingle [infoTy ty] "Missing getTypeStringCode"
 end
 
-lang MExprTune
+lang MExprTuning
   = MExprHoles
   + MExprHoleCFA
   + NestedMeasuringPoints
   + DependencyAnalysis
   + Instrumentation
-  + TuneBase
+  + MExprTune
   + MExprTypeCheck
   + OCamlExtrasTypeCheck
   + OCamlExtrasPprint
   + OCamlExtrasANF
   + OCamlExtrasCFA
   + OCamlExtrasConstArity
+  + RepTypesPrettyPrint
 end
 
 lang MExprTuneANFAll
@@ -131,7 +132,7 @@ let options =
   , jsonPath = None ()
   , inputTunedValues = None ()
   , outputTunedValues = None ()
-  , dependencyAnalysis = true
+  , tuneOptions = None ()
   } in
 let argConfig =
   [ ( [("--olib", " ", "<package>")]
@@ -201,13 +202,13 @@ let argConfig =
     , "Compile with tuned values from this file (no tuning)."
     , lam p. { p.options with inputTunedValues = Some (argToString p) }
     )
+  , ( [("--tune-options", " ", "<path>")]
+    , "If option --tune is provided, read tune options from this toml file."
+    , lam p. { p.options with tuneOptions = Some (argToString p) }
+    )
   , ( [("--tune", " ", "<path>")]
     , "Perform tuning and write tuned values to this file."
     , lam p. { p.options with outputTunedValues = Some (argToString p) }
-    )
-  , ( [("--no-dependency-analysis", "", "")]
-    , "Do not perform dependency analysis before tuning."
-    , lam p. { p.options with dependencyAnalysis = false }
     )
   ] in
 
@@ -280,19 +281,22 @@ let ast =
 
   else if options.useTuning then
     match options.inputTunedValues with Some path then
-      use MExprTune in
+      use MExprTuning in
       let table = tuneFileReadTable path in
       let ast = normalizeTerm ast in
       match colorCallGraph [] ast with (env, ast) in
       insert env table ast
 
     else match options.outputTunedValues with Some path then
-      use MExprTune in
+      use MExprTuning in
+      let tuneOptions: TuneOptions = tuneOptionsFromToml
+        tuneOptionsDefault (optionMapOr "" readFile options.tuneOptions) in
+
       let ast = normalizeTerm ast in
       match colorCallGraph [] ast with (env, cAst) in
 
       match
-        if options.dependencyAnalysis then
+        if tuneOptions.dependencyAnalysis then
           let ast = use MExprTuneANFAll in normalizeTerm cAst in
           let cfaRes = holeCfa (graphDataInit env) ast in
           let cfaRes = analyzeNested env cfaRes ast in
@@ -311,7 +315,7 @@ let ast =
       let tuneBinary = sysJoinPath r.tempDir "tune" in
       compile ast tuneBinary;
 
-      let result = tuneEntry tuneBinary tuneOptionsDefault env dep instRes r ast in
+      let result = tune tuneBinary tuneOptions env dep instRes r ast in
       tuneFileDumpTable path env result true;
 
       r.cleanup();
