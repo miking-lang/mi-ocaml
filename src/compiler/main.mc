@@ -278,8 +278,11 @@ let ast =
        writeFile path (pprintAst ast)
      else ());
     ast
+  else ast
+in
 
-  else if options.useTuning then
+let ast =
+  if options.useTuning then
     match options.inputTunedValues with Some path then
       use MExprTuning in
       let table = tuneFileReadTable path in
