@@ -6,6 +6,12 @@ include "mexpr/shallow-patterns.mc"
 include "mexpr/phase-stats.mc"
 include "mexpr/reptypes.mc"
 include "ocaml/mcore.mc"
+include "tuning/ast.mc"
+include "tuning/context-expansion.mc"
+include "tuning/dependency-analysis.mc"
+include "tuning/instrumentation.mc"
+include "tuning/tune.mc"
+include "tuning/tune-file.mc"
 
 -- local
 include "syntax.mc"
@@ -16,6 +22,9 @@ include "type-check.mc"
 include "shallow-patterns.mc"
 include "generate.mc"
 include "cmp.mc"
+include "anf.mc"
+include "cfa.mc"
+include "const-arity.mc"
 
 lang MCoreCompile
   = OCamlAst
@@ -45,6 +54,7 @@ lang MCoreCompile
   + RepTypesSym
   + RepTypesTypeCheck
   + ShallowOCamlExtras
+  + HoleAst
 end
 
 lang RepAnalysis
@@ -80,6 +90,28 @@ lang MExprRepTypesComposedSolver
   | ty -> errorSingle [infoTy ty] "Missing getTypeStringCode"
 end
 
+lang MExprTuning
+  = MExprHoles
+  + MExprHoleCFA
+  + NestedMeasuringPoints
+  + DependencyAnalysis
+  + Instrumentation
+  + MExprTune
+  + MExprTypeCheck
+  + OCamlExtrasTypeCheck
+  + OCamlExtrasPprint
+  + OCamlExtrasANF
+  + OCamlExtrasCFA
+  + OCamlExtrasConstArity
+  + RepTypesPrettyPrint
+end
+
+lang MExprTuneANFAll
+  = HoleAst
+  + MExprANFAll
+  + OCamlExtrasANF
+end
+
 mexpr
 
 use MCoreCompile in
@@ -88,6 +120,7 @@ let options =
   { olibs = []
   , clibs = []
   , useRepr = true
+  , useTuning = true
   , debugMExpr = None ()
   , debugRepr = None ()
   , debugAnalysis = None ()
@@ -97,6 +130,9 @@ let options =
   , debugSolveTiming = false
   , destinationFile = None ()
   , jsonPath = None ()
+  , inputTunedValues = None ()
+  , outputTunedValues = None ()
+  , tuneOptions = None ()
   } in
 let argConfig =
   [ ( [("--olib", " ", "<package>")]
@@ -114,7 +150,7 @@ let argConfig =
 
   -- Reptypes related options
   , ( [("--no-repr", "", "")]
-    , "Turn of the repr-passes (i.e., programs that contain repr will fail to compile, possibly loudly)."
+    , "Turn off the repr-passes (i.e., programs that contain repr will fail to compile, possibly loudly)."
     , lam p. { p.options with useRepr = false }
     )
   , ( [("--debug-mexpr", " ", "<path>")]
@@ -156,7 +192,45 @@ let argConfig =
     , "Output the connections between representations and operations in JSON format."
     , lam p. { p.options with jsonPath = Some (argToString p) }
     )
+
+  -- Tuning related options
+  , ( [("--no-tuning", "", "")]
+    , "Turn off the tuning-passes (i.e., programs that contain holes will fail to compile, possibly loudly)."
+    , lam p. { p.options with useTuning = false }
+    )
+  , ( [("--with-tuned-values", " ", "<path>")]
+    , "Compile with tuned values from this file (no tuning)."
+    , lam p. { p.options with inputTunedValues = Some (argToString p) }
+    )
+  , ( [("--tune-options", " ", "<path>")]
+    , "If option --tune is provided, read tune options from this toml file."
+    , lam p. { p.options with tuneOptions = Some (argToString p) }
+    )
+  , ( [("--tune", " ", "<path>")]
+    , "Perform tuning and write tuned values to this file."
+    , lam p. { p.options with outputTunedValues = Some (argToString p) }
+    )
   ] in
+
+let compile: Expr -> String -> () = lam ast. lam destinationFile.
+  compileMCore ast
+    { debugTypeAnnot = lam. ()
+    , debugGenerate = lam. ()
+    , exitBefore = lam. ()
+    , postprocessOcamlTops = lam x. x
+    , compileOcaml = lam libs. lam clibs. lam srcStr.
+      let config =
+        { optimize = true
+        , libraries = concat libs options.olibs
+        , cLibraries = concat clibs options.clibs
+        } in
+      let res = ocamlCompileWithConfig config srcStr in
+      sysMoveFile res.binaryPath destinationFile;
+      sysChmodWriteAccessFile destinationFile;
+      res.cleanup ();
+      ()
+    }
+in
 
 match
   let res = argParse options argConfig in
@@ -207,27 +281,61 @@ let ast =
   else ast
 in
 
+let ast =
+  if options.useTuning then
+    match options.inputTunedValues with Some path then
+      use MExprTuning in
+      let table = tuneFileReadTable path in
+      let ast = normalizeTerm ast in
+      match colorCallGraph [] ast with (env, ast) in
+      insert env table ast
+
+    else match options.outputTunedValues with Some path then
+      use MExprTuning in
+      let tuneOptions: TuneOptions = tuneOptionsFromToml
+        tuneOptionsDefault (optionMapOr "" readFile options.tuneOptions) in
+
+      let ast = normalizeTerm ast in
+      match colorCallGraph [] ast with (env, cAst) in
+
+      match
+        if tuneOptions.dependencyAnalysis then
+          let ast = use MExprTuneANFAll in normalizeTerm cAst in
+          let cfaRes = holeCfa (graphDataInit env) ast in
+          let cfaRes = analyzeNested env cfaRes ast in
+          (analyzeDependency env cfaRes ast, ast)
+        else assumeFullDependency env cAst
+      with (dep, ast) in
+
+      match instrument env dep ast with (instRes, ast) in
+      match contextExpand env ast with (r, ast) in
+
+      let ast = stripTuneAnnotations ast in
+      let ast = typeCheckLeaveMeta ast in
+      let ast = removeMetaVarExpr ast in
+      let ast = lowerAll ast in
+
+      let tuneBinary = sysJoinPath r.tempDir "tune" in
+      compile ast tuneBinary;
+
+      let result = tune tuneBinary tuneOptions env dep instRes r ast in
+      tuneFileDumpTable path env result true;
+
+      r.cleanup();
+      instRes.cleanup();
+
+      insert env result cAst
+
+    else
+      let ast = stripTuneAnnotations ast in
+      default ast
+
+  else ast
+in
+
 let ast = removeMetaVarExpr ast in
 let ast = lowerAll ast in
 
 match options.destinationFile with Some destinationFile in
 
-compileMCore ast
-  { debugTypeAnnot = lam. ()
-  , debugGenerate = lam. ()
-  , exitBefore = lam. ()
-  , postprocessOcamlTops = lam x. x
-  , compileOcaml = lam libs. lam clibs. lam srcStr.
-    let config =
-      { optimize = true
-      , libraries = concat libs options.olibs
-      , cLibraries = concat clibs options.clibs
-      } in
-    let res = ocamlCompileWithConfig config srcStr in
-    sysMoveFile res.binaryPath destinationFile;
-    sysChmodWriteAccessFile destinationFile;
-    res.cleanup ();
-    ()
-  };
-
-()
+compile ast destinationFile

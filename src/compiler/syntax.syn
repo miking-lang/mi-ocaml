@@ -148,6 +148,11 @@ prod Con : OExpr = n:UName
 prod List : OExpr = "[" unbrokenElems:OExpr? "]"
 prod Array : OExpr = "[|" unbrokenElems:OExpr? "|]"
 prod Unit : OExpr = "()"
+prod Hole : OExpr =
+  "hole" "{"
+    (fields:{name:LName "=" val:OExpr}
+     fields:{"|" name:LName "=" val:OExpr}*)?
+  "}"
 -- NOTE(vipa, 2023-11-03): This breaks compatibility with OCaml, it
 -- has `@` as an infix operator
 prod ScaleBase : OExpr = "@"
