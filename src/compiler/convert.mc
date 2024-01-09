@@ -415,6 +415,24 @@ lang ConvertDivfOExpr = ConvertOCamlToMExpr + DivfOExprAst + ArithFloatAst
     (convExpr x.right))
 end
 
+lang ConvertEqOExpr = ConvertOCamlToMExpr + EqOExprAst + OCamlCmpAst
+  sem convExpr =
+  | EqOExpr x -> withInfo x.info (appf2_
+    (mkOp x.info (OpEq ()))
+    (convExpr x.left)
+    (convExpr x.right)
+  )
+end
+
+lang ConvertNeqOExpr = ConvertOCamlToMExpr + NeqOExprAst + OCamlCmpAst
+  sem convExpr =
+  | NeqOExpr x -> withInfo x.info (appf2_
+    (mkOp x.info (OpNeq ()))
+    (convExpr x.left)
+    (convExpr x.right)
+  )
+end
+
 lang ConvertLtOExpr = ConvertOCamlToMExpr + LtOExprAst + OCamlCmpAst
   sem convExpr =
   | LtOExpr x -> withInfo x.info (appf2_
@@ -423,6 +441,34 @@ lang ConvertLtOExpr = ConvertOCamlToMExpr + LtOExprAst + OCamlCmpAst
     (convExpr x.right)
   )
 end
+
+lang ConvertGtOExpr = ConvertOCamlToMExpr + GtOExprAst + OCamlCmpAst
+  sem convExpr =
+  | GtOExpr x -> withInfo x.info (appf2_
+    (mkOp x.info (OpGt ()))
+    (convExpr x.left)
+    (convExpr x.right)
+  )
+end
+
+lang ConvertLeqOExpr = ConvertOCamlToMExpr + LeqOExprAst + OCamlCmpAst
+  sem convExpr =
+  | LeqOExpr x -> withInfo x.info (appf2_
+    (mkOp x.info (OpLeq ()))
+    (convExpr x.left)
+    (convExpr x.right)
+  )
+end
+
+lang ConvertGeqOExpr = ConvertOCamlToMExpr + GeqOExprAst + OCamlCmpAst
+  sem convExpr =
+  | GeqOExpr x -> withInfo x.info (appf2_
+    (mkOp x.info (OpGeq ()))
+    (convExpr x.left)
+    (convExpr x.right)
+  )
+end
+
 
 lang ConvertTupOExpr = ConvertOCamlToMExpr + TupOExprAst
   sem convExpr =
@@ -747,7 +793,12 @@ lang ComposedConvertOCamlToMExpr
   + ConvertConsOExpr
   + ConvertConsOPat
   + ConvertDivfOExpr
+  + ConvertEqOExpr
+  + ConvertNeqOExpr
   + ConvertLtOExpr
+  + ConvertGtOExpr
+  + ConvertLeqOExpr
+  + ConvertGeqOExpr
   + ConvertDiviOExpr
   + ConvertFalseOExpr
   + ConvertFalseOPat

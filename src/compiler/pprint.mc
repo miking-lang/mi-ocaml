@@ -60,10 +60,15 @@ end
 
 lang OCamlCmpPprint = PrettyPrint + OCamlCmpAst + OverloadedOpPrettyPrint
   sem getOpStringCode indent env =
+  | OpEq _ -> (env, "=")
+  | OpNeq _ -> (env, "!=")
   | OpLt _ -> (env, "<")
+  | OpGt _ -> (env, ">")
+  | OpLeq _ -> (env, "<=")
+  | OpGeq _ -> (env, ">=")
 
   sem opIsAtomic =
-  | OpLt _ -> true
+  | OpEq _ | OpNeq _ | OpLt _ | OpGt _ | OpLeq _ | OpGeq _ -> true
 end
 
 lang OCamlExtrasPprint = OCamlStringPprint + OCamlOpaquePprint + OCamlListPprint + OCamlCmpPprint
