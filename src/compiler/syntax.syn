@@ -204,6 +204,7 @@ precedence {
   App;
   Muli Mulf Divi Divf;
   Addi Addf Subi Subf;
+  Eq Neq Lt Gt Leq Geq;
   Cons;
   ~Or And;
   Tup;
