@@ -1,4 +1,5 @@
 include "mexpr/ast.mc"
+include "mexpr/op-overload.mc"
 
 lang OpaqueOCamlAst = Ast
   -- Expr
@@ -129,4 +130,22 @@ lang OCamlListAst = Ast + ConstAst + TyConst
   sem withTypePat ty =
   | PatOCons x -> PatOCons {x with ty = ty}
   | PatONil x -> PatONil {x with ty = ty}
+end
+
+lang OCamlCmpAst = OverloadedOpAst + CmpIntAst + CmpFloatAst + IntTypeAst
+                 + FloatTypeAst
+  -- Overloaded operator
+  syn Op =
+  | OpLt
+
+  sem opMkTypes info env =
+  | OpLt _ ->
+    let ty = newmonovar env.currentLvl info in
+    {params = [ty, ty], return = tyWithInfo info tybool_}
+
+  sem resolveOp info =
+  | x & {op = OpLt _, params = [TyInt _] ++ _} ->
+    withInfo info (const_ x.return (CLti ()))
+  | x & {op = OpLt _, params = [TyFloat _] ++ _} ->
+    withInfo info (const_ x.return (CLtf ()))
 end

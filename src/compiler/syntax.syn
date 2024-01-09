@@ -176,6 +176,7 @@ infix left Muli : OExpr = op:"*"
 infix left Mulf : OExpr = op:"*."
 infix left Divi : OExpr = op:"/"
 infix left Divf : OExpr = op:"/."
+infix left Lt : OExpr = op:"<"
 
 infix left Tup : OExpr = ","
 infix left App : OExpr = empty

@@ -415,6 +415,15 @@ lang ConvertDivfOExpr = ConvertOCamlToMExpr + DivfOExprAst + ArithFloatAst
     (convExpr x.right))
 end
 
+lang ConvertLtOExpr = ConvertOCamlToMExpr + LtOExprAst + OCamlCmpAst
+  sem convExpr =
+  | LtOExpr x -> withInfo x.info (appf2_
+    (mkOp x.info (OpLt ()))
+    (convExpr x.left)
+    (convExpr x.right)
+  )
+end
+
 lang ConvertTupOExpr = ConvertOCamlToMExpr + TupOExprAst
   sem convExpr =
   | tm & TupOExpr x -> withInfo x.info (utuple_ (tupList tm))
@@ -738,6 +747,7 @@ lang ComposedConvertOCamlToMExpr
   + ConvertConsOExpr
   + ConvertConsOPat
   + ConvertDivfOExpr
+  + ConvertLtOExpr
   + ConvertDiviOExpr
   + ConvertFalseOExpr
   + ConvertFalseOPat
