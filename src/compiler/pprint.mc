@@ -58,5 +58,18 @@ lang OCamlListPprint = PrettyPrint + OCamlListAst + ConstPrettyPrint
   | PatONil x -> (env, "[]")
 end
 
-lang OCamlExtrasPprint = OCamlStringPprint + OCamlOpaquePprint + OCamlListPprint
+lang OCamlCmpPprint = PrettyPrint + OCamlCmpAst + OverloadedOpPrettyPrint
+  sem getOpStringCode indent env =
+  | OpEq _ -> (env, "=")
+  | OpNeq _ -> (env, "!=")
+  | OpLt _ -> (env, "<")
+  | OpGt _ -> (env, ">")
+  | OpLeq _ -> (env, "<=")
+  | OpGeq _ -> (env, ">=")
+
+  sem opIsAtomic =
+  | OpEq _ | OpNeq _ | OpLt _ | OpGt _ | OpLeq _ | OpGeq _ -> true
+end
+
+lang OCamlExtrasPprint = OCamlStringPprint + OCamlOpaquePprint + OCamlListPprint + OCamlCmpPprint
 end

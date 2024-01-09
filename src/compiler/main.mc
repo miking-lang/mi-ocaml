@@ -2,6 +2,7 @@
 include "arg.mc"
 include "mexpr/symbolize.mc"
 include "mexpr/type-check.mc"
+include "mexpr/op-overload.mc"
 include "mexpr/shallow-patterns.mc"
 include "mexpr/phase-stats.mc"
 include "mexpr/reptypes.mc"
@@ -30,6 +31,7 @@ lang MCoreCompile
   = OCamlAst
   + ComposedConvertOCamlToMExpr
   + DumpRepTypesProblem
+  + HoleAst
   + HtmlAnnotator
   + LogfBuiltin
   + MCoreCompileLang
@@ -45,6 +47,8 @@ lang MCoreCompile
   + OCamlExtrasPprint
   + OCamlExtrasTypeCheck
   + OCamlPrelude
+  + OverloadedOpDesugar
+  + OverloadedOpTypeCheck
   + PhaseStats
   + PprintTyAnnot
   + PrintMostFrequentRepr
@@ -54,7 +58,6 @@ lang MCoreCompile
   + RepTypesSym
   + RepTypesTypeCheck
   + ShallowOCamlExtras
-  + HoleAst
 end
 
 lang RepAnalysis
@@ -122,6 +125,8 @@ let options =
   , useRepr = true
   , useTuning = true
   , debugMExpr = None ()
+  , debugTypeCheck = None ()
+  , debugDesugar = None ()
   , debugRepr = None ()
   , debugAnalysis = None ()
   , debugSolverState = false
@@ -147,15 +152,23 @@ let argConfig =
     , "Place the final executable here."
     , lam p. { p.options with destinationFile = Some (argToString p) }
     )
+  , ( [("--debug-mexpr", " ", "<path>")]
+    , "Output an interactive (html) pprinted version of the AST just after conversion to MExpr."
+    , lam p. { p.options with debugMExpr = Some (argToString p) }
+    )
+  , ( [("--debug-type-check", " ", "<path>")]
+    , "Output an interactive (html) pprinted version of the AST just after type checking."
+    , lam p. { p.options with debugTypeCheck = Some (argToString p) }
+    )
+  , ( [("--debug-desugar", " ", "<path>")]
+    , "Output an interactive (html) pprinted version of the AST just after desugaring."
+    , lam p. { p.options with debugDesugar = Some (argToString p) }
+    )
 
   -- Reptypes related options
   , ( [("--no-repr", "", "")]
     , "Turn off the repr-passes (i.e., programs that contain repr will fail to compile, possibly loudly)."
     , lam p. { p.options with useRepr = false }
-    )
-  , ( [("--debug-mexpr", " ", "<path>")]
-    , "Output an interactive (html) pprinted version of the AST just after conversion to MExpr."
-    , lam p. { p.options with debugMExpr = Some (argToString p) }
     )
   , ( [("--debug-repr", " ", "<path>")]
     , "Output an interactive (html) pprinted version of the AST just after repr solving."
@@ -254,6 +267,16 @@ let ast = wrapInPrelude ast in
 
 let ast = symbolize ast in
 let ast = typeCheckLeaveMeta ast in
+
+(match options.debugTypeCheck with Some path then
+   writeFile path (pprintAst ast)
+ else ());
+
+let ast = desugarExpr ast in
+
+(match options.debugDesugar with Some path then
+   writeFile path (pprintAst ast)
+ else ());
 
 let ast =
   if options.useRepr then
