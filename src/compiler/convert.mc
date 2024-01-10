@@ -181,6 +181,19 @@ lang ConvertReprOTop = ConvertOCamlToMExpr + ReprOTopAst + ReprDeclAst + VarType
     }
 end
 
+lang ConvertUtestOTop = ConvertOCamlToMExpr + UTestOTopAst + UtestAst
+  sem convTop cont =
+  | UTestOTop x -> TmUtest
+    { test = convExpr x.test
+    , expected = convExpr x.expected
+    , tusing = optionMap convExpr x.tusing
+    , tonfail = optionMap convExpr x.onfail
+    , ty = tyunknown_
+    , info = x.info
+    , next = cont
+    }
+end
+
 -- Type bindings --
 
 lang ConvertSimpleOTyBinding = ConvertOCamlToMExpr + SimpleOTyBindingAst
@@ -837,6 +850,7 @@ lang ComposedConvertOCamlToMExpr
   + ConvertTypeOTop
   + ConvertUnitOExpr
   + ConvertUnitOPat
+  + ConvertUtestOTop
   + ConvertVarOExpr
   + ConvertVarOExpr
   + ConvertVarOType
