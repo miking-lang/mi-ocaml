@@ -146,7 +146,7 @@ let argConfig =
     )
   , ( [("--clib", " ", "<c-library>")]
     , "Tell dune/ocamlopt to link these c-libraries."
-    , lam p. { p.options with olibs = snoc p.options.olibs (argToString p) }
+    , lam p. { p.options with clibs = snoc p.options.clibs (argToString p) }
     )
   , ( [("--output", " ", "<path>")]
     , "Place the final executable here."
@@ -225,24 +225,25 @@ let argConfig =
     )
   ] in
 
-let compile: Expr -> String -> () = lam ast. lam destinationFile.
-  compileMCore ast
-    { debugTypeAnnot = lam. ()
-    , debugGenerate = lam. ()
-    , exitBefore = lam. ()
-    , postprocessOcamlTops = lam x. x
-    , compileOcaml = lam libs. lam clibs. lam srcStr.
-      let config =
-        { optimize = true
-        , libraries = concat libs options.olibs
-        , cLibraries = concat clibs options.clibs
-        } in
-      let res = ocamlCompileWithConfig config srcStr in
-      sysMoveFile res.binaryPath destinationFile;
-      sysChmodWriteAccessFile destinationFile;
-      res.cleanup ();
-      ()
-    }
+let compile : [String] -> [String] -> Expr -> String -> () =
+  lam olibs. lam clibs. lam ast. lam destinationFile.
+    compileMCore ast
+      { debugTypeAnnot = lam. ()
+      , debugGenerate = lam. ()
+      , exitBefore = lam. ()
+      , postprocessOcamlTops = lam x. x
+      , compileOcaml = lam ol. lam cl. lam srcStr.
+        let config =
+          { optimize = true
+          , libraries = concat ol olibs
+          , cLibraries = concat cl clibs
+          } in
+        let res = ocamlCompileWithConfig config srcStr in
+        sysMoveFile res.binaryPath destinationFile;
+        sysChmodWriteAccessFile destinationFile;
+        res.cleanup ();
+        ()
+      }
 in
 
 match
@@ -339,7 +340,7 @@ let ast =
       let ast = lowerAll ast in
 
       let tuneBinary = sysJoinPath r.tempDir "tune" in
-      compile ast tuneBinary;
+      compile options.olibs options.clibs ast tuneBinary;
 
       let result = tune tuneBinary tuneOptions env dep instRes r ast in
       tuneFileDumpTable path env result true;
@@ -361,4 +362,4 @@ let ast = lowerAll ast in
 
 match options.destinationFile with Some destinationFile in
 
-compile ast destinationFile
+compile options.olibs options.clibs ast destinationFile
