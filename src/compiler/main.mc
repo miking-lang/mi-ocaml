@@ -154,6 +154,20 @@ lang ComposedTreeSolverGuided
   + TreeSolverGuided
 end
 
+lang ComposedTreeSolverZ3
+  = MExprRepTypesSolverBase
+  + TreeSolverZ3
+  sem tyToZ3 boundTyVars state =
+  | TyOpaqueOCaml x -> (state, join ["(opaqueTy \"", x.content, "\""])
+  | TyOString _ -> (state, "ostringTy")
+  | TyOList _ -> (state, "olistTy")
+end
+
+lang ComposedTreeSolverExplore
+  = MExprRepTypesSolverBase
+  + TreeSolverExplore
+end
+
 mexpr
 
 use MCoreCompile in
@@ -166,6 +180,8 @@ con SolTreeLazySolver : () -> SolverOption in
 con TreeSolverBottomUp : () -> SolverOption in
 con TreeSolverGreedy : () -> SolverOption in
 con TreeSolverGuided : () -> SolverOption in
+con TreeSolverZ3 : () -> SolverOption in
+con TreeSolverExplore : () -> SolverOption in
 
 let options =
   { olibs = []
@@ -236,6 +252,8 @@ let argConfig =
         , ("tree-bottom-up", TreeSolverBottomUp ())
         , ("tree-greedy", TreeSolverGreedy ())
         , ("tree-guided", TreeSolverGuided ())
+        , ("tree-z3", TreeSolverZ3 ())
+        , ("tree-explore", TreeSolverExplore ())
         , ("mixed-sat-lazy-greed", SolTreeLazySolver ())
         ] in
       let reprSolver = argToString p in
@@ -384,6 +402,8 @@ let ast =
       case TreeSolverBottomUp _ then use ComposedTreeSolverBottomUp in reprSolve reprOptions ast
       case TreeSolverGreedy _ then use ComposedTreeSolverGreedy in reprSolve reprOptions ast
       case TreeSolverGuided _ then use ComposedTreeSolverGuided in reprSolve reprOptions ast
+      case TreeSolverZ3 _ then use ComposedTreeSolverZ3 in reprSolve reprOptions ast
+      case TreeSolverExplore _ then use ComposedTreeSolverExplore in reprSolve reprOptions ast
       end in
 
     (match options.debugRepr with Some path then
