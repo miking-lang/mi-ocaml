@@ -149,6 +149,11 @@ lang ComposedTreeSolverGreedy
   + TreeSolverGreedy
 end
 
+lang ComposedTreeSolverGuided
+  = MExprRepTypesSolverBase
+  + TreeSolverGuided
+end
+
 mexpr
 
 use MCoreCompile in
@@ -160,13 +165,14 @@ con MemoedTopDownSolver : () -> SolverOption in
 con SolTreeLazySolver : () -> SolverOption in
 con TreeSolverBottomUp : () -> SolverOption in
 con TreeSolverGreedy : () -> SolverOption in
+con TreeSolverGuided : () -> SolverOption in
 
 let options =
   { olibs = []
   , clibs = []
 
   -- , reprSolver = LazyTopDownSolver ()
-  , reprSolver = TreeSolverGreedy ()
+  , reprSolver = TreeSolverGuided ()
   , useRepr = true
   , useTuning = true
   , debugMExpr = None ()
@@ -229,6 +235,7 @@ let argConfig =
         , ("top-down", MemoedTopDownSolver ())
         , ("tree-bottom-up", TreeSolverBottomUp ())
         , ("tree-greedy", TreeSolverGreedy ())
+        , ("tree-guided", TreeSolverGuided ())
         , ("mixed-sat-lazy-greed", SolTreeLazySolver ())
         ] in
       let reprSolver = argToString p in
@@ -376,6 +383,7 @@ let ast =
       case SolTreeLazySolver _ then use ComposedMixedSolver in reprSolve reprOptions ast
       case TreeSolverBottomUp _ then use ComposedTreeSolverBottomUp in reprSolve reprOptions ast
       case TreeSolverGreedy _ then use ComposedTreeSolverGreedy in reprSolve reprOptions ast
+      case TreeSolverGuided _ then use ComposedTreeSolverGuided in reprSolve reprOptions ast
       end in
 
     (match options.debugRepr with Some path then
