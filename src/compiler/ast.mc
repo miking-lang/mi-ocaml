@@ -1,4 +1,5 @@
 include "mexpr/ast.mc"
+include "mexpr/op-overload.mc"
 
 lang OpaqueOCamlAst = Ast
   -- Expr
@@ -129,4 +130,40 @@ lang OCamlListAst = Ast + ConstAst + TyConst
   sem withTypePat ty =
   | PatOCons x -> PatOCons {x with ty = ty}
   | PatONil x -> PatONil {x with ty = ty}
+end
+
+lang OCamlCmpAst = OverloadedOpAst + CmpIntTypeAst + CmpFloatTypeAst
+                 + IntTypeAst + FloatTypeAst
+  -- Overloaded operator
+  syn Op =
+  | OpEq
+  | OpNeq
+  | OpLt
+  | OpGt
+  | OpLeq
+  | OpGeq
+
+  sem opMkTypes info env =
+  | OpEq _ | OpNeq _ | OpLt _ | OpGt _ | OpLeq _ | OpGeq _ ->
+    let ty = newmonovar env.currentLvl info in
+    {params = [ty, ty], return = tyWithInfo info tybool_}
+
+  sem resolveOp info =
+  | x & {op = OpEq _, params = [TyInt _] ++ _}   -> mkConst info (CEqi ())
+  | x & {op = OpEq _, params = [TyFloat _] ++ _} -> mkConst info (CEqf ())
+
+  | x & {op = OpNeq _, params = [TyInt _] ++ _}   -> mkConst info (CNeqi ())
+  | x & {op = OpNeq _, params = [TyFloat _] ++ _} -> mkConst info (CNeqf ())
+
+  | x & {op = OpLt _, params = [TyInt _] ++ _}   -> mkConst info (CLti ())
+  | x & {op = OpLt _, params = [TyFloat _] ++ _} -> mkConst info (CLtf ())
+
+  | x & {op = OpGt _, params = [TyInt _] ++ _}   -> mkConst info (CGti ())
+  | x & {op = OpGt _, params = [TyFloat _] ++ _} -> mkConst info (CGtf ())
+
+  | x & {op = OpLeq _, params = [TyInt _] ++ _}   -> mkConst info (CLeqi ())
+  | x & {op = OpLeq _, params = [TyFloat _] ++ _} -> mkConst info (CLeqf ())
+
+  | x & {op = OpGeq _, params = [TyInt _] ++ _}   -> mkConst info (CGeqi ())
+  | x & {op = OpGeq _, params = [TyFloat _] ++ _} -> mkConst info (CGeqf ())
 end

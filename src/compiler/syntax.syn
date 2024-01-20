@@ -177,6 +177,13 @@ infix left Mulf : OExpr = op:"*."
 infix left Divi : OExpr = op:"/"
 infix left Divf : OExpr = op:"/."
 
+infix left Eq : OExpr = op:"="
+infix left Neq : OExpr = op:"!="
+infix left Lt : OExpr = op:"<"
+infix left Gt : OExpr = op:">"
+infix left Leq : OExpr = op:"<="
+infix left Geq : OExpr = op:">="
+
 infix left Tup : OExpr = ","
 infix left App : OExpr = empty
 infix right Cons : OExpr = op:"::"
@@ -197,6 +204,7 @@ precedence {
   App;
   Muli Mulf Divi Divf;
   Addi Addf Subi Subf;
+  Eq Neq Lt Gt Leq Geq;
   Cons;
   ~Or And;
   Tup;

@@ -2,6 +2,7 @@
 include "arg.mc"
 include "mexpr/symbolize.mc"
 include "mexpr/type-check.mc"
+include "mexpr/op-overload.mc"
 include "mexpr/shallow-patterns.mc"
 include "mexpr/phase-stats.mc"
 include "mexpr/reptypes.mc"
@@ -30,6 +31,7 @@ lang MCoreCompile
   = OCamlAst
   + ComposedConvertOCamlToMExpr
   + DumpRepTypesProblem
+  + HoleAst
   + HtmlAnnotator
   + LogfBuiltin
   + MCoreCompileLang
@@ -45,6 +47,8 @@ lang MCoreCompile
   + OCamlExtrasPprint
   + OCamlExtrasTypeCheck
   + OCamlPrelude
+  + OverloadedOpDesugar
+  + OverloadedOpTypeCheck
   + PhaseStats
   + PprintTyAnnot
   + PrintMostFrequentRepr
@@ -54,7 +58,6 @@ lang MCoreCompile
   + RepTypesSym
   + RepTypesTypeCheck
   + ShallowOCamlExtras
-  + HoleAst
 end
 
 lang RepAnalysis
@@ -122,6 +125,8 @@ let options =
   , useRepr = true
   , useTuning = true
   , debugMExpr = None ()
+  , debugTypeCheck = None ()
+  , debugDesugar = None ()
   , debugRepr = None ()
   , debugAnalysis = None ()
   , debugSolverState = false
@@ -141,21 +146,29 @@ let argConfig =
     )
   , ( [("--clib", " ", "<c-library>")]
     , "Tell dune/ocamlopt to link these c-libraries."
-    , lam p. { p.options with olibs = snoc p.options.olibs (argToString p) }
+    , lam p. { p.options with clibs = snoc p.options.clibs (argToString p) }
     )
   , ( [("--output", " ", "<path>")]
     , "Place the final executable here."
     , lam p. { p.options with destinationFile = Some (argToString p) }
+    )
+  , ( [("--debug-mexpr", " ", "<path>")]
+    , "Output an interactive (html) pprinted version of the AST just after conversion to MExpr."
+    , lam p. { p.options with debugMExpr = Some (argToString p) }
+    )
+  , ( [("--debug-type-check", " ", "<path>")]
+    , "Output an interactive (html) pprinted version of the AST just after type checking."
+    , lam p. { p.options with debugTypeCheck = Some (argToString p) }
+    )
+  , ( [("--debug-desugar", " ", "<path>")]
+    , "Output an interactive (html) pprinted version of the AST just after desugaring."
+    , lam p. { p.options with debugDesugar = Some (argToString p) }
     )
 
   -- Reptypes related options
   , ( [("--no-repr", "", "")]
     , "Turn off the repr-passes (i.e., programs that contain repr will fail to compile, possibly loudly)."
     , lam p. { p.options with useRepr = false }
-    )
-  , ( [("--debug-mexpr", " ", "<path>")]
-    , "Output an interactive (html) pprinted version of the AST just after conversion to MExpr."
-    , lam p. { p.options with debugMExpr = Some (argToString p) }
     )
   , ( [("--debug-repr", " ", "<path>")]
     , "Output an interactive (html) pprinted version of the AST just after repr solving."
@@ -212,24 +225,25 @@ let argConfig =
     )
   ] in
 
-let compile: Expr -> String -> () = lam ast. lam destinationFile.
-  compileMCore ast
-    { debugTypeAnnot = lam. ()
-    , debugGenerate = lam. ()
-    , exitBefore = lam. ()
-    , postprocessOcamlTops = lam x. x
-    , compileOcaml = lam libs. lam clibs. lam srcStr.
-      let config =
-        { optimize = true
-        , libraries = concat libs options.olibs
-        , cLibraries = concat clibs options.clibs
-        } in
-      let res = ocamlCompileWithConfig config srcStr in
-      sysMoveFile res.binaryPath destinationFile;
-      sysChmodWriteAccessFile destinationFile;
-      res.cleanup ();
-      ()
-    }
+let compile : [String] -> [String] -> Expr -> String -> () =
+  lam olibs. lam clibs. lam ast. lam destinationFile.
+    compileMCore ast
+      { debugTypeAnnot = lam. ()
+      , debugGenerate = lam. ()
+      , exitBefore = lam. ()
+      , postprocessOcamlTops = lam x. x
+      , compileOcaml = lam ol. lam cl. lam srcStr.
+        let config =
+          { optimize = true
+          , libraries = concat ol olibs
+          , cLibraries = concat cl clibs
+          } in
+        let res = ocamlCompileWithConfig config srcStr in
+        sysMoveFile res.binaryPath destinationFile;
+        sysChmodWriteAccessFile destinationFile;
+        res.cleanup ();
+        ()
+      }
 in
 
 match
@@ -254,6 +268,16 @@ let ast = wrapInPrelude ast in
 
 let ast = symbolize ast in
 let ast = typeCheckLeaveMeta ast in
+
+(match options.debugTypeCheck with Some path then
+   writeFile path (pprintAst ast)
+ else ());
+
+let ast = desugarExpr ast in
+
+(match options.debugDesugar with Some path then
+   writeFile path (pprintAst ast)
+ else ());
 
 let ast =
   if options.useRepr then
@@ -316,7 +340,7 @@ let ast =
       let ast = lowerAll ast in
 
       let tuneBinary = sysJoinPath r.tempDir "tune" in
-      compile ast tuneBinary;
+      compile options.olibs options.clibs ast tuneBinary;
 
       let result = tune tuneBinary tuneOptions env dep instRes r ast in
       tuneFileDumpTable path env result true;
@@ -338,4 +362,4 @@ let ast = lowerAll ast in
 
 match options.destinationFile with Some destinationFile in
 
-compile ast destinationFile
+compile options.olibs options.clibs ast destinationFile
