@@ -167,3 +167,6 @@ lang OCamlCmpAst = OverloadedOpAst + CmpIntTypeAst + CmpFloatTypeAst
   | x & {op = OpGeq _, params = [TyInt _] ++ _}   -> mkConst info (CGeqi ())
   | x & {op = OpGeq _, params = [TyFloat _] ++ _} -> mkConst info (CGeqf ())
 end
+
+lang OCamlExtrasAst = OCamlStringAst + OCamlListAst + OpaqueOCamlAst + OCamlCmpAst
+end

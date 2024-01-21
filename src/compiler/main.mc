@@ -80,6 +80,7 @@ lang MExprRepTypesSolverBase
   + MExprCmp
   + MExprPrettyPrint
   + MExprUnify
+  + OCamlExtrasAst
   + OCamlExtrasCmp
   + OCamlExtrasPprint
   + OCamlExtrasTypeCheck
@@ -154,6 +155,16 @@ lang ComposedTreeSolverGuided
   + TreeSolverGuided
 end
 
+lang ComposedTreeSolverHomogeneous
+  = MExprRepTypesSolverBase
+  + TreeSolverHomogeneous
+end
+
+lang ComposedTreeSolverMixed
+  = MExprRepTypesSolverBase
+  + TreeSolverMixed
+end
+
 lang ComposedTreeSolverZ3
   = MExprRepTypesSolverBase
   + TreeSolverZ3
@@ -180,6 +191,8 @@ con SolTreeLazySolver : () -> SolverOption in
 con TreeSolverBottomUp : () -> SolverOption in
 con TreeSolverGreedy : () -> SolverOption in
 con TreeSolverGuided : () -> SolverOption in
+con TreeSolverHomogeneous : () -> SolverOption in
+con TreeSolverMixed : () -> SolverOption in
 con TreeSolverZ3 : () -> SolverOption in
 con TreeSolverExplore : () -> SolverOption in
 
@@ -188,9 +201,10 @@ let options =
   , clibs = []
 
   -- , reprSolver = LazyTopDownSolver ()
-  , reprSolver = TreeSolverGuided ()
+  , reprSolver = TreeSolverMixed ()
   , useRepr = true
   , useTuning = true
+  , reprSolveAll = false
   , debugMExpr = None ()
   , debugTypeCheck = None ()
   , debugDesugar = None ()
@@ -252,7 +266,9 @@ let argConfig =
         , ("tree-bottom-up", TreeSolverBottomUp ())
         , ("tree-greedy", TreeSolverGreedy ())
         , ("tree-guided", TreeSolverGuided ())
+        , ("tree-homogeneous", TreeSolverHomogeneous ())
         , ("tree-z3", TreeSolverZ3 ())
+        , ("tree-mixed", TreeSolverMixed ())
         , ("tree-explore", TreeSolverExplore ())
         , ("mixed-sat-lazy-greed", SolTreeLazySolver ())
         ] in
@@ -265,6 +281,10 @@ let argConfig =
           [ "Expected one of: ", strJoin ", " (mapKeys mapping)
           ]);
         exit 1
+    )
+  , ( [("--repr-solve-all", "", "")]
+    , "Compute all repr solutions, add index suffix to outputs after the repr phase. Expensive, and not supported for all solvers."
+    , lam p. { p.options with reprSolveAll = true }
     )
   , ( [("--debug-repr", " ", "<path>")]
     , "Output an interactive (html) pprinted version of the AST just after repr solving."
@@ -362,112 +382,154 @@ let ast = wrapInPrelude ast in
    writeFile path (pprintAst ast)
  else ());
 
-let ast = symbolize ast in
-let ast = typeCheckLeaveMeta ast in
+recursive
+  let symbolizePhase = lam options. lam ast. lam cont.
+    cont options (symbolize ast)
 
-(match options.debugTypeCheck with Some path then
-   writeFile path (pprintAst ast)
- else ());
-
-let ast = desugarExpr ast in
-
-(match options.debugDesugar with Some path then
-   writeFile path (pprintAst ast)
- else ());
-
-let ast = generateUtest options.generateTests ast in
-
-let ast =
-  if options.useRepr then
-    let ast = use RepAnalysis in typeCheckLeaveMeta ast in
-
-    (match options.debugAnalysis with Some path then
+  let typeCheckPhase = lam options. lam ast. lam cont.
+    let ast = typeCheckLeaveMeta in
+    (match options.debugTypeCheck with Some path then
        writeFile path (pprintAst ast)
      else ());
-    (match options.jsonPath with Some jsonPath then
-       dumpRepTypesProblem jsonPath ast
-     else ());
+    cont options ast
 
-    let reprOptions =
-      { debugBranchState = options.debugSolverState
-      , debugFinalSolution = options.debugFinalSolution
-      , debugSolveProcess = options.debugSolveProcess
-      , debugSolveTiming = options.debugSolveTiming
-      } in
-    let ast = switch options.reprSolver
-      case SATishSolver _ then use ComposedSATIshSolver in reprSolve reprOptions ast
-      case LazyTopDownSolver _ then use ComposedLazyTopDownSolver in reprSolve reprOptions ast
-      case MemoedTopDownSolver _ then use ComposedMemoedTopDownSolver in reprSolve reprOptions ast
-      case SolTreeLazySolver _ then use ComposedMixedSolver in reprSolve reprOptions ast
-      case TreeSolverBottomUp _ then use ComposedTreeSolverBottomUp in reprSolve reprOptions ast
-      case TreeSolverGreedy _ then use ComposedTreeSolverGreedy in reprSolve reprOptions ast
-      case TreeSolverGuided _ then use ComposedTreeSolverGuided in reprSolve reprOptions ast
-      case TreeSolverZ3 _ then use ComposedTreeSolverZ3 in reprSolve reprOptions ast
-      case TreeSolverExplore _ then use ComposedTreeSolverExplore in reprSolve reprOptions ast
-      end in
-
-    (match options.debugRepr with Some path then
+  let desugarPhase = lam options. lam ast. lam cont.
+    let ast = desugarExpr ast in
+    (match options.debugDesugar with Some path then
        writeFile path (pprintAst ast)
      else ());
-    ast
-  else ast
+    cont options ast
+
+  let generateUtestPhase = lam options. lam ast. lam cont.
+    cont options (generateUtest options.generateTests ast)
+
+  let reprAnalysisPhase = lam options. lam ast. lam cont.
+    if options.useRepr then
+      let ast = use RepAnalysis in typeCheckLeaveMeta ast in
+
+      (match options.debugAnalysis with Some path then
+         writeFile path (pprintAst ast)
+       else ());
+      (match options.jsonPath with Some jsonPath then
+         dumpRepTypesProblem jsonPath ast
+       else ());
+
+      let reprOptions =
+        { debugBranchState = options.debugSolverState
+        , debugFinalSolution =
+          if options.debugFinalSolution then
+            if options.reprSolveAll
+            then match options.destinationFile with Some filename
+              then SDTFunc (lam idx. lam output. writeFile (join [filename, int2string idx, ".txt"]) output)
+              else error "The combination of flags --solve-all and --debug-solve-process requires --output as well."
+            else SDTStdout ()
+          else SDTNone ()
+        , debugSolveProcess = options.debugSolveProcess
+        , debugSolveTiming = options.debugSolveTiming
+        , solveAll = options.reprSolveAll
+        } in
+      let asts = switch options.reprSolver
+        case SATishSolver _ then use ComposedSATIshSolver in reprSolve reprOptions ast
+        case LazyTopDownSolver _ then use ComposedLazyTopDownSolver in reprSolve reprOptions ast
+        case MemoedTopDownSolver _ then use ComposedMemoedTopDownSolver in reprSolve reprOptions ast
+        case SolTreeLazySolver _ then use ComposedMixedSolver in reprSolve reprOptions ast
+        case TreeSolverBottomUp _ then use ComposedTreeSolverBottomUp in reprSolve reprOptions ast
+        case TreeSolverGreedy _ then use ComposedTreeSolverGreedy in reprSolve reprOptions ast
+        case TreeSolverGuided _ then use ComposedTreeSolverGuided in reprSolve reprOptions ast
+        case TreeSolverHomogeneous _ then use ComposedTreeSolverHomogeneous in reprSolve reprOptions ast
+        case TreeSolverZ3 _ then use ComposedTreeSolverZ3 in reprSolve reprOptions ast
+        case TreeSolverMixed _ then use ComposedTreeSolverMixed in reprSolve reprOptions ast
+        case TreeSolverExplore _ then use ComposedTreeSolverExplore in reprSolve reprOptions ast
+        end in
+      match asts with [ast] then
+        (match options.debugRepr with Some path then
+           writeFile path (pprintAst ast)
+         else ());
+        cont options ast
+      else
+        let addIdxToPath = lam idx. lam path. concat path (int2string idx) in
+        let f = lam i. lam ast.
+          let options = {options with destinationFile = optionMap (addIdxToPath i) options.destinationFile} in
+          print "."; flushStdout ();
+          cont options ast in
+        print "Compiling versions";
+        iteri f asts
+    else cont options ast
+
+  let tuningPhase = lam options. lam ast. lam cont.
+    if options.useTuning then
+      match options.inputTunedValues with Some path then
+        use MExprTuning in
+        let table = tuneFileReadTable path in
+        let ast = normalizeTerm ast in
+        match colorCallGraph [] ast with (env, ast) in
+        cont options (insert env table ast)
+
+      else match options.outputTunedValues with Some path then
+        use MExprTuning in
+        let tuneOptions: TuneOptions = tuneOptionsFromToml
+          tuneOptionsDefault (optionMapOr "" readFile options.tuneOptions) in
+
+        let ast = normalizeTerm ast in
+        match colorCallGraph [] ast with (env, cAst) in
+
+        match
+          if tuneOptions.dependencyAnalysis then
+            let ast = use MExprTuneANFAll in normalizeTerm cAst in
+            let cfaRes = holeCfa (graphDataInit env) ast in
+            let cfaRes = analyzeNested env cfaRes ast in
+            (analyzeDependency env cfaRes ast, ast)
+          else assumeFullDependency env cAst
+        with (dep, ast) in
+
+        match instrument env dep ast with (instRes, ast) in
+        match contextExpand env ast with (r, ast) in
+
+        let ast = stripTuneAnnotations ast in
+        let ast = typeCheckLeaveMeta ast in
+        let ast = removeMetaVarExpr ast in
+        let ast = lowerAll ast in
+
+        let tuneBinary = sysJoinPath r.tempDir "tune" in
+        compile options.olibs options.clibs ast tuneBinary;
+
+        let result = tune tuneBinary tuneOptions env dep instRes r ast in
+        tuneFileDumpTable path env result true;
+
+        r.cleanup();
+        instRes.cleanup();
+
+        cont options (insert env result cAst)
+
+      else
+        let ast = stripTuneAnnotations ast in
+        cont options (default ast)
+
+    else cont options ast
+
+  let remMetaVarPhase = lam options. lam ast. lam cont.
+    cont options (removeMetaVarExpr ast)
+
+  let patLowerPhase = lam options. lam ast. lam cont.
+    cont options (lowerAll ast)
+
+  let compilePhase = lam options. lam ast. lam cont.
+    match options.destinationFile with Some destinationFile in
+    compile option.olibs options.clibs ast destinationFile
+in
+let pipeline = lam options. lam ast. lam phases.
+  let composed = foldr (lam phase. lam next. lam options. lam ast. phase options ast next) (lam. lam. ()) phases in
+  composed options ast
 in
 
-let ast =
-  if options.useTuning then
-    match options.inputTunedValues with Some path then
-      use MExprTuning in
-      let table = tuneFileReadTable path in
-      let ast = normalizeTerm ast in
-      match colorCallGraph [] ast with (env, ast) in
-      insert env table ast
-
-    else match options.outputTunedValues with Some path then
-      use MExprTuning in
-      let tuneOptions: TuneOptions = tuneOptionsFromToml
-        tuneOptionsDefault (optionMapOr "" readFile options.tuneOptions) in
-
-      let ast = normalizeTerm ast in
-      match colorCallGraph [] ast with (env, cAst) in
-
-      match
-        if tuneOptions.dependencyAnalysis then
-          let ast = use MExprTuneANFAll in normalizeTerm cAst in
-          let cfaRes = holeCfa (graphDataInit env) ast in
-          let cfaRes = analyzeNested env cfaRes ast in
-          (analyzeDependency env cfaRes ast, ast)
-        else assumeFullDependency env cAst
-      with (dep, ast) in
-
-      match instrument env dep ast with (instRes, ast) in
-      match contextExpand env ast with (r, ast) in
-
-      let ast = stripTuneAnnotations ast in
-      let ast = typeCheckLeaveMeta ast in
-      let ast = removeMetaVarExpr ast in
-      let ast = lowerAll ast in
-
-      let tuneBinary = sysJoinPath r.tempDir "tune" in
-      compile options.olibs options.clibs ast tuneBinary;
-
-      let result = tune tuneBinary tuneOptions env dep instRes r ast in
-      tuneFileDumpTable path env result true;
-
-      r.cleanup();
-      instRes.cleanup();
-
-      insert env result cAst
-
-    else
-      let ast = stripTuneAnnotations ast in
-      default ast
-
-  else ast
-in
-
-let ast = removeMetaVarExpr ast in
-let ast = lowerAll ast in
-
-match options.destinationFile with Some destinationFile in
-
-compile options.olibs options.clibs ast destinationFile
+pipeline options ast
+  [ symbolizePhase
+  , typeCheckPhase
+  , desugarExpr
+  , generateUtestPhase
+  , reprAnalysisPhase
+  , tuningPhase
+  , remMetaVarPhase
+  , patLowerPhase
+  , compilePhase
+  ]
