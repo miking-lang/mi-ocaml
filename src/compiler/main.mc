@@ -199,6 +199,7 @@ con TreeSolverExplore : () -> SolverOption in
 let options =
   { olibs = []
   , clibs = []
+  , doCompile = true
 
   -- , reprSolver = LazyTopDownSolver ()
   , reprSolver = TreeSolverMixed ()
@@ -249,6 +250,10 @@ let argConfig =
   , ( [("--debug-desugar", " ", "<path>")]
     , "Output an interactive (html) pprinted version of the AST just after desugaring."
     , lam p. { p.options with debugDesugar = Some (argToString p) }
+    )
+  , ( [("--no-compile", "", "")]
+    , "Do not produce a final executable."
+    , lam p. { p.options with doCompile = false }
     )
 
   -- Reptypes related options
@@ -421,7 +426,7 @@ recursive
             if options.reprSolveAll
             then match options.destinationFile with Some filename
               then SDTFunc (lam idx. lam output. writeFile (join [filename, int2string idx, ".txt"]) output)
-              else error "The combination of flags --solve-all and --debug-solve-process requires --output as well."
+              else error "The combination of flags --solve-all and --debug-final-solution requires --output as well."
             else SDTStdout ()
           else SDTNone ()
         , debugSolveProcess = options.debugSolveProcess
@@ -515,7 +520,9 @@ recursive
 
   let compilePhase = lam options. lam ast. lam cont.
     match options.destinationFile with Some destinationFile in
-    compile option.olibs options.clibs ast destinationFile
+    if options.doCompile then
+      compile option.olibs options.clibs ast destinationFile
+    else ()
 in
 let pipeline = lam options. lam ast. lam phases.
   let composed = foldr (lam phase. lam next. lam options. lam ast. phase options ast next) (lam. lam. ()) phases in
