@@ -114,6 +114,10 @@ prod LetImplOTop : OTop =
 prod ReprOTop : OTop =
   "letrepr" n:LName "{" lhs:OType "=" rhs:OType "}"
 
+prod UTestOTop : OTop =
+  "utest" test:OExpr "with" expected:OExpr
+  ("using" tusing:OExpr)? ("else" onfail:OExpr)? ";;"
+
 -- Type bindings
 prod SimpleOTyBinding : OTyBinding =
  ( empty

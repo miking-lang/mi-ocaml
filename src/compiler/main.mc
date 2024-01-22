@@ -6,6 +6,7 @@ include "mexpr/op-overload.mc"
 include "mexpr/shallow-patterns.mc"
 include "mexpr/phase-stats.mc"
 include "mexpr/reptypes.mc"
+include "mexpr/utest-generate.mc"
 include "ocaml/mcore.mc"
 include "tuning/ast.mc"
 include "tuning/context-expansion.mc"
@@ -42,6 +43,7 @@ lang MCoreCompile
   + MExprPrettyPrint
   + MExprSym
   + MExprTypeCheck
+  + MExprUtestGenerate
   + OCamlExtrasCmp
   + OCamlExtrasGenerate
   + OCamlExtrasPprint
@@ -134,6 +136,7 @@ let options =
   , debugSolveProcess = false
   , debugSolveTiming = false
   , destinationFile = None ()
+  , generateTests = false
   , jsonPath = None ()
   , inputTunedValues = None ()
   , outputTunedValues = None ()
@@ -151,6 +154,10 @@ let argConfig =
   , ( [("--output", " ", "<path>")]
     , "Place the final executable here."
     , lam p. { p.options with destinationFile = Some (argToString p) }
+    )
+  , ( [("--test", "", "")]
+    , "Generate utest code."
+    , lam p. { p.options with generateTests = true }
     )
   , ( [("--debug-mexpr", " ", "<path>")]
     , "Output an interactive (html) pprinted version of the AST just after conversion to MExpr."
@@ -278,6 +285,8 @@ let ast = desugarExpr ast in
 (match options.debugDesugar with Some path then
    writeFile path (pprintAst ast)
  else ());
+
+let ast = generateUtest options.generateTests ast in
 
 let ast =
   if options.useRepr then
