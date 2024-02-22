@@ -165,6 +165,21 @@ lang ComposedTreeSolverMixed
   + TreeSolverMixed
 end
 
+lang ComposedTreeSolverStateless
+  = MExprRepTypesSolverBase
+  + TreeSolverStateless
+end
+
+lang ComposedTreeSolverFilterByBest
+  = MExprRepTypesSolverBase
+  + TreeSolverFilterByBest
+end
+
+lang ComposedTreeSolverPartIndep
+  = MExprRepTypesSolverBase
+  + TreeSolverPartIndep
+end
+
 lang ComposedTreeSolverZ3
   = MExprRepTypesSolverBase
   + TreeSolverZ3
@@ -194,7 +209,10 @@ con TreeSolverGuided : () -> SolverOption in
 con TreeSolverHomogeneous : () -> SolverOption in
 con TreeSolverMixed : () -> SolverOption in
 con TreeSolverZ3 : () -> SolverOption in
+con TreeSolverStateless : () -> SolverOption in
+con TreeSolverFilterByBest : () -> SolverOption in
 con TreeSolverExplore : () -> SolverOption in
+con TreeSolverPartIndep : () -> SolverOption in
 
 let options =
   { olibs = []
@@ -202,7 +220,7 @@ let options =
   , doCompile = true
 
   -- , reprSolver = LazyTopDownSolver ()
-  , reprSolver = TreeSolverMixed ()
+  , reprSolver = TreeSolverPartIndep ()
   , useRepr = true
   , useTuning = true
   , reprSolveAll = false
@@ -215,6 +233,7 @@ let options =
   , debugFinalSolution = false
   , debugSolveProcess = false
   , debugSolveTiming = false
+  , debugImpls = false
   , destinationFile = None ()
   , generateTests = false
   , jsonPath = None ()
@@ -274,7 +293,10 @@ let argConfig =
         , ("tree-homogeneous", TreeSolverHomogeneous ())
         , ("tree-z3", TreeSolverZ3 ())
         , ("tree-mixed", TreeSolverMixed ())
+        , ("tree-stateless", TreeSolverStateless ())
+        , ("tree-filter-best", TreeSolverFilterByBest ())
         , ("tree-explore", TreeSolverExplore ())
+        , ("tree-indep", TreeSolverPartIndep ())
         , ("mixed-sat-lazy-greed", SolTreeLazySolver ())
         ] in
       let reprSolver = argToString p in
@@ -309,6 +331,10 @@ let argConfig =
   , ( [("--debug-solver-state", "", "")]
     , "Print debug information about the state of the solver after each op-use."
     , lam p. { p.options with debugSolverState = true }
+    )
+  , ( [("--debug-impls", "", "")]
+    , "Print debug information about each impl as it's parsed."
+    , lam p. { p.options with debugImpls = true }
     )
   , ( [("--debug-solve-timing", "", "")]
     , "Print debug information about the state of the solver after each op-use."
@@ -431,6 +457,7 @@ recursive
           else SDTNone ()
         , debugSolveProcess = options.debugSolveProcess
         , debugSolveTiming = options.debugSolveTiming
+        , debugImpls = options.debugImpls
         , solveAll = options.reprSolveAll
         } in
       let asts = switch options.reprSolver
@@ -444,7 +471,10 @@ recursive
         case TreeSolverHomogeneous _ then use ComposedTreeSolverHomogeneous in reprSolve reprOptions ast
         case TreeSolverZ3 _ then use ComposedTreeSolverZ3 in reprSolve reprOptions ast
         case TreeSolverMixed _ then use ComposedTreeSolverMixed in reprSolve reprOptions ast
+        case TreeSolverStateless _ then use ComposedTreeSolverStateless in reprSolve reprOptions ast
+        case TreeSolverFilterByBest _ then use ComposedTreeSolverFilterByBest in reprSolve reprOptions ast
         case TreeSolverExplore _ then use ComposedTreeSolverExplore in reprSolve reprOptions ast
+        case TreeSolverPartIndep _ then use ComposedTreeSolverPartIndep in reprSolve reprOptions ast
         end in
       match asts with [ast] then
         (match options.debugRepr with Some path then
