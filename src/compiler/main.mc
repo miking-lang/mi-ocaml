@@ -223,6 +223,7 @@ let options =
   , reprSolver = TreeSolverPartIndep ()
   , useRepr = true
   , useTuning = true
+  , solverCache = None ()
   , reprSolveAll = false
   , debugMExpr = None ()
   , debugTypeCheck = None ()
@@ -279,6 +280,10 @@ let argConfig =
   , ( [("--no-repr", "", "")]
     , "Turn off the repr-passes (i.e., programs that contain repr will fail to compile, possibly loudly)."
     , lam p. { p.options with useRepr = false }
+    )
+  , ( [("--solver-cache", " ", "<file>")]
+    , "Load/store solutions here, reusing them if possible"
+    , lam p. { p.options with solverCache = Some (argToString p) }
     )
   , ( [("--repr-solver", " ", "<solver>")]
     , "Pick the solver to use for picking letimpls"
@@ -459,6 +464,7 @@ recursive
         , debugSolveTiming = options.debugSolveTiming
         , debugImpls = options.debugImpls
         , solveAll = options.reprSolveAll
+        , solutionCacheFile = options.solverCache
         } in
       let asts = switch options.reprSolver
         case SATishSolver _ then use ComposedSATIshSolver in reprSolve reprOptions ast
