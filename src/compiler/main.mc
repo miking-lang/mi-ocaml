@@ -165,9 +165,14 @@ lang ComposedTreeSolverMixed
   + TreeSolverMixed
 end
 
-lang ComposedTreeSolverStateless
+lang ComposedTreeSolverEnum
   = MExprRepTypesSolverBase
-  + TreeSolverStateless
+  + TreeSolverEnum
+end
+
+lang ComposedTreeSolverFast
+  = MExprRepTypesSolverBase
+  + TreeSolverFast
 end
 
 lang ComposedTreeSolverFilterByBest
@@ -209,10 +214,11 @@ con TreeSolverGuided : () -> SolverOption in
 con TreeSolverHomogeneous : () -> SolverOption in
 con TreeSolverMixed : () -> SolverOption in
 con TreeSolverZ3 : () -> SolverOption in
-con TreeSolverStateless : () -> SolverOption in
 con TreeSolverFilterByBest : () -> SolverOption in
 con TreeSolverExplore : () -> SolverOption in
 con TreeSolverPartIndep : () -> SolverOption in
+con TreeSolverEnum : () -> SolverOption in
+con TreeSolverFast : () -> SolverOption in
 
 let options =
   { olibs = []
@@ -303,10 +309,11 @@ let argConfig =
         , ("tree-homogeneous", TreeSolverHomogeneous ())
         , ("tree-z3", TreeSolverZ3 ())
         , ("tree-mixed", TreeSolverMixed ())
-        , ("tree-stateless", TreeSolverStateless ())
         , ("tree-filter-best", TreeSolverFilterByBest ())
         , ("tree-explore", TreeSolverExplore ())
         , ("tree-indep", TreeSolverPartIndep ())
+        , ("tree-enum", TreeSolverEnum ())
+        , ("tree-fast", TreeSolverFast ())
         , ("mixed-sat-lazy-greed", SolTreeLazySolver ())
         ] in
       let reprSolver = argToString p in
@@ -482,9 +489,10 @@ recursive
         case TreeSolverHomogeneous _ then use ComposedTreeSolverHomogeneous in reprSolve reprOptions ast
         case TreeSolverZ3 _ then use ComposedTreeSolverZ3 in reprSolve reprOptions ast
         case TreeSolverMixed _ then use ComposedTreeSolverMixed in reprSolve reprOptions ast
-        case TreeSolverStateless _ then use ComposedTreeSolverStateless in reprSolve reprOptions ast
         case TreeSolverFilterByBest _ then use ComposedTreeSolverFilterByBest in reprSolve reprOptions ast
         case TreeSolverExplore _ then use ComposedTreeSolverExplore in reprSolve reprOptions ast
+        case TreeSolverEnum _ then use ComposedTreeSolverEnum in reprSolve reprOptions ast
+        case TreeSolverFast _ then use ComposedTreeSolverFast in reprSolve reprOptions ast
         case TreeSolverPartIndep _ then use ComposedTreeSolverPartIndep in reprSolve reprOptions ast
         end in
       match asts with [ast] then
