@@ -218,6 +218,7 @@ let options =
   { olibs = []
   , clibs = []
   , doCompile = true
+  , debugPhases = false
 
   -- , reprSolver = LazyTopDownSolver ()
   , reprSolver = TreeSolverPartIndep ()
@@ -274,6 +275,10 @@ let argConfig =
   , ( [("--no-compile", "", "")]
     , "Do not produce a final executable."
     , lam p. { p.options with doCompile = false }
+    )
+  , ( [("--debug-phases", "", "")]
+    , "Print timing information for each compiler phase."
+    , lam p. { p.options with debugPhases = true }
     )
 
   -- Reptypes related options
@@ -557,22 +562,29 @@ recursive
   let compilePhase = lam options. lam ast. lam cont.
     match options.destinationFile with Some destinationFile in
     if options.doCompile then
-      compile option.olibs options.clibs ast destinationFile
-    else ()
+      compile option.olibs options.clibs ast destinationFile;
+      cont options ast
+    else cont options ast
 in
 let pipeline = lam options. lam ast. lam phases.
-  let composed = foldr (lam phase. lam next. lam options. lam ast. phase options ast next) (lam. lam. ()) phases in
+  let log = mkPhaseLogState options.debugPhases in
+  let step = lam phase. lam next. lam options. lam ast.
+    let next = lam options. lam ast.
+      endPhaseStats log phase.0 ast;
+      next options ast in
+    phase.1 options ast next in
+  let composed = foldr step (lam. lam. ()) phases in
   composed options ast
 in
 
 pipeline options ast
-  [ symbolizePhase
-  , typeCheckPhase
-  , desugarExpr
-  , generateUtestPhase
-  , reprAnalysisPhase
-  , tuningPhase
-  , remMetaVarPhase
-  , patLowerPhase
-  , compilePhase
+  [ ("symbolize", symbolizePhase)
+  , ("typeCheck", typeCheckPhase)
+  , ("desugarExpr", desugarExpr)
+  , ("generateUtestPhase", generateUtestPhase)
+  , ("reprAnalysis", reprAnalysisPhase)
+  , ("tuningPhase", tuningPhase)
+  , ("remMetaVar", remMetaVarPhase)
+  , ("patLower", patLowerPhase)
+  , ("compile", compilePhase)
   ]
