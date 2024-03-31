@@ -9,8 +9,6 @@ lang OCamlStringPprint = PrettyPrint + OCamlStringAst + ConstPrettyPrint
   sem getTypeStringCode indent env =
   | TyOString _ -> (env, "string")
 
-  sem patIsAtomic =
-  | PatOString _ -> true
   sem getPatStringCode indent env =
   | PatOString x -> (env, join ["\"", escapeString x.val, "\""])
 end
@@ -27,8 +25,11 @@ lang OCamlOpaquePprint = PrettyPrint + OpaqueOCamlAst
   | TyOpaqueOCaml x -> (env, x.content)
 
   -- Pat
-  sem patIsAtomic =
-  | PatOpaqueOCamlCon x -> optionIsNone x.arg
+  sem patPrecedence =
+  | PatOpaqueOCamlCon x ->
+    if optionIsNone x.arg
+    then 100000
+    else 2
   sem getPatStringCode indent env =
   | PatOpaqueOCamlCon x ->
     match optionMapAccum (getPatStringCode indent) env x.arg with (env, arg) in
@@ -47,9 +48,8 @@ lang OCamlListPprint = PrettyPrint + OCamlListAst + ConstPrettyPrint
     match getTypeStringCode indent env x.elem with (env, elem) in
     (env, join ["OList ", elem])
 
-  sem patIsAtomic =
-  | PatOCons _ -> false
-  | PatONil _ -> true
+  sem patPrecedence =
+  | PatOCons _ -> 0
   sem getPatStringCode indent env =
   | PatOCons x ->
     match getPatStringCode indent env x.head with (env, head) in

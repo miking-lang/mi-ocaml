@@ -36,8 +36,10 @@ lang MCoreCompile
   + HtmlAnnotator
   + LogfBuiltin
   + MCoreCompileLang
+  + MetaVarTypeCmp
   + MetaVarTypePrettyPrint
   + MExprCmp
+  + MExprConstType
   + MExprEval
   + MExprLowerNestedPatterns
   + MExprPrettyPrint
@@ -63,17 +65,20 @@ lang MCoreCompile
 end
 
 lang RepAnalysis
-  = MExprRepTypesAnalysis
+  = MetaVarTypeCmp
   + MExprCmp
-  + RepTypesCmp
   + MExprPrettyPrint
-  + RepTypesPrettyPrint
-  + OCamlExtrasTypeCheck
+  + MExprRepTypesAnalysis
+  + OCamlExtrasCmp
   + OCamlExtrasPprint
+  + OCamlExtrasTypeCheck
+  + RepTypesCmp
+  + RepTypesPrettyPrint
 end
 
 lang MExprRepTypesSolverBase
   = AllTypeGeneralize
+  + MetaVarTypeCmp
   + MetaVarTypeGeneralize
   + MetaVarTypePrettyPrint
   + MExprAst
