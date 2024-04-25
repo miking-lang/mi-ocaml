@@ -440,7 +440,7 @@ recursive
     cont options (symbolize ast)
 
   let typeCheckPhase = lam options. lam ast. lam cont.
-    let ast = typeCheckLeaveMeta in
+    let ast = typeCheckLeaveMeta ast in
     (match options.debugTypeCheck with Some path then
        writeFile path (pprintAst ast)
      else ());
@@ -575,7 +575,7 @@ recursive
   let compilePhase = lam options. lam ast. lam cont.
     match options.destinationFile with Some destinationFile in
     if options.doCompile then
-      compile option.olibs options.clibs ast destinationFile;
+      compile options.olibs options.clibs ast destinationFile;
       cont options ast
     else cont options ast
 in
@@ -593,10 +593,10 @@ in
 pipeline options ast
   [ ("symbolize", symbolizePhase)
   , ("typeCheck", typeCheckPhase)
-  , ("desugarExpr", desugarExpr)
-  , ("generateUtestPhase", generateUtestPhase)
+  , ("desugar", desugarPhase)
+  , ("generateUtest", generateUtestPhase)
   , ("reprAnalysis", reprAnalysisPhase)
-  , ("tuningPhase", tuningPhase)
+  , ("tuning", tuningPhase)
   , ("remMetaVar", remMetaVarPhase)
   , ("patLower", patLowerPhase)
   , ("compile", compilePhase)
