@@ -101,6 +101,9 @@ token {fragment = UnitTokenParser,}
 token {fragment = OCamlMultilineCommentParser,}
 token {fragment = WhitespaceParser,}
 
+-- Errors
+token {fragment = ErrorTokenParser,}
+
 -- Tops
 prod LetOTop : OTop =
   "let" rec:"rec"? bindings:OBinding ("and" bindings:OBinding)* ";;"

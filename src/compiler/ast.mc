@@ -50,7 +50,7 @@ lang OCamlStringAst = Ast + ConstAst + TyConst
   syn Const =
   | COString {val : String}
 
-  sem tyConst =
+  sem tyConstBase d =
   | COString _ -> TyOString {info = NoInfo ()}
 
   -- Type
@@ -83,7 +83,7 @@ lang OCamlListAst = Ast + ConstAst + TyConst
   | CONil ()
   | COCons ()
 
-  sem tyConst =
+  sem tyConstBase d =
   | CONil _ -> tyall_ "x"
     (TyOList {info = NoInfo (), elem = tyvar_ "x"})
   | COCons _ -> tyall_ "x" (tyarrows_
@@ -166,4 +166,7 @@ lang OCamlCmpAst = OverloadedOpAst + CmpIntTypeAst + CmpFloatTypeAst
 
   | x & {op = OpGeq _, params = [TyInt _] ++ _}   -> mkConst info (CGeqi ())
   | x & {op = OpGeq _, params = [TyFloat _] ++ _} -> mkConst info (CGeqf ())
+end
+
+lang OCamlExtrasAst = OCamlStringAst + OCamlListAst + OpaqueOCamlAst + OCamlCmpAst
 end
