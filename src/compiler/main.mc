@@ -573,8 +573,8 @@ recursive
     cont options (lowerAll ast)
 
   let compilePhase = lam options. lam ast. lam cont.
-    match options.destinationFile with Some destinationFile in
     if options.doCompile then
+      match options.destinationFile with Some destinationFile in
       compile options.olibs options.clibs ast destinationFile;
       cont options ast
     else cont options ast

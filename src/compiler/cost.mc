@@ -12,7 +12,7 @@ let costSetVar
     let n = if nameHasSym n then n else nameSetNewSym n in
     modref costSymEnv (
       let old = deref costSymEnv in
-      { old with varEnv = mapInsert (nameGetStr n) n old.varEnv }
+      symbolizeUpdateVarEnv old (mapInsert (nameGetStr n) n old.currentEnv.varEnv)
     );
     use Eval in modref costEvalEnv (evalEnvInsert n c (deref costEvalEnv))
 
