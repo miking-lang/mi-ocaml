@@ -82,7 +82,7 @@ lang MkFuncType = FindVars
     foldr ntyall_ ty (setToSeq vars)
 end
 
-lang MkLet = ConvertOCamlToMExpr + RecLetsAst + LetAst + MkBody + FindVars + MkFuncType
+lang MkLet = ConvertOCamlToMExpr + DeclAst + RecLetsDeclAst + LetDeclAst + MkBody + FindVars + MkFuncType
   sem mkLet : Info -> Option Info -> [Unknown] -> Expr -> Expr
   sem mkLet info rec bindings = | inexpr ->
     match rec with Some _ then
@@ -95,22 +95,28 @@ lang MkLet = ConvertOCamlToMExpr + RecLetsAst + LetAst + MkBody + FindVars + MkF
         , body = body
         , info = infoTm body
         } in
-      TmRecLets
-      { bindings = map mkRecBinding bindings
-      , inexpr = inexpr
-      , ty = tyunknown_
+      TmDecl
+      { decl = DeclRecLets
+        { bindings = map mkRecBinding bindings
+        , info = info
+        }
       , info = info
+      , ty = tyunknown_
+      , inexpr = inexpr
       }
     else foldr
       (lam bind. lam cont.
-        let bind = convBinding bind in TmLet
-        { ident = bind.0
-        , tyAnnot = mkFuncType (map (lam x. x.1) bind.1) bind.2
-        , tyBody = tyunknown_
-        , body = mkBody (map (lam x. x.0) bind.1) bind.3
+        let bind = convBinding bind in TmDecl
+        { decl = DeclLet
+          { ident = bind.0
+          , tyAnnot = mkFuncType (map (lam x. x.1) bind.1) bind.2
+          , tyBody = tyunknown_
+          , body = mkBody (map (lam x. x.0) bind.1) bind.3
+          , info = info
+          }
+        , info = info
         , inexpr = cont
         , ty = tyunknown_
-        , info = info
         })
       inexpr
       bindings
@@ -133,13 +139,16 @@ lang ConvertTypeOTop = ConvertOCamlToMExpr + TypeOTopAst
     withInfo x.info cont
 end
 
-lang ConvertLetOpOTop = ConvertOCamlToMExpr + LetOpOTopAst + OpDeclAst + FindVars
+lang ConvertLetOpOTop = ConvertOCamlToMExpr + LetOpOTopAst + OpDeclAst + FindVars + DeclAst
   sem convTop cont =
-  | LetOpOTop x -> TmOpDecl
-    { ident = x.n.v
-    , tyAnnot =
-      let ty = convType x.ty in
-      foldr ntyall_ ty (setToSeq (findVars (setEmpty nameCmp) ty))
+  | LetOpOTop x -> TmDecl
+    { decl = DeclOp
+      { ident = x.n.v
+      , tyAnnot =
+        let ty = convType x.ty in
+        foldr ntyall_ ty (setToSeq (findVars (setEmpty nameCmp) ty))
+      , info = x.info
+      }
     , ty = tyunknown_
     , inexpr = cont
     , info = x.info
@@ -148,49 +157,58 @@ end
 
 lang ConvertLetImplOTop = ConvertOCamlToMExpr + LetImplOTopAst + OpImplAst + EvalCost + SymCost + FindVars
   sem convTop cont =
-  | LetImplOTop x -> TmOpImpl
-    { ident = x.n.v
-    , implId = negi 1
-    , reprScope = negi 1
-    , metaLevel = negi 1
-    , selfCost = evalCost (symbolizeCost (convExpr x.cost))
-    , body = convExpr x.body
-    , specType =
-      let ty = optionMapOr tyunknown_ convType x.ty in
-      foldr ntyall_ ty (setToSeq (findVars (setEmpty nameCmp) ty))
-    , delayedReprUnifications = []
+  | LetImplOTop x -> TmDecl
+    { decl = DeclOpImpl
+      { ident = x.n.v
+      , implId = negi 1
+      , reprScope = negi 1
+      , metaLevel = negi 1
+      , selfCost = evalCost (symbolizeCost (convExpr x.cost))
+      , body = convExpr x.body
+      , specType =
+        let ty = optionMapOr tyunknown_ convType x.ty in
+        foldr ntyall_ ty (setToSeq (findVars (setEmpty nameCmp) ty))
+      , delayedReprUnifications = []
+      , info = x.info
+      }
     , inexpr = cont
     , ty = tyunknown_
     , info = x.info
     }
 end
 
-lang ConvertReprOTop = ConvertOCamlToMExpr + ReprOTopAst + ReprDeclAst + VarTypeAst + FindVars
+lang ConvertReprOTop = ConvertOCamlToMExpr + ReprOTopAst + ReprDeclAst + VarTypeAst + FindVars + DeclAst
   sem convTop cont =
   | ReprOTop x ->
     let pat = convType x.lhs in
     let repr = convType x.rhs in
-    TmReprDecl
-    { ident = x.n.v
-    , vars = setToSeq (findVars (findVars (setEmpty nameCmp) pat) repr)
-    , pat = pat
-    , repr = repr
+    TmDecl
+    { decl = DeclRepr
+      { ident = x.n.v
+      , vars = setToSeq (findVars (findVars (setEmpty nameCmp) pat) repr)
+      , pat = pat
+      , repr = repr
+      , info = x.info
+      }
     , ty = tyunknown_
     , inexpr = cont
     , info = x.info
     }
 end
 
-lang ConvertUtestOTop = ConvertOCamlToMExpr + UTestOTopAst + UtestAst
+lang ConvertUtestOTop = ConvertOCamlToMExpr + UTestOTopAst + UtestDeclAst
   sem convTop cont =
-  | UTestOTop x -> TmUtest
-    { test = convExpr x.test
-    , expected = convExpr x.expected
-    , tusing = optionMap convExpr x.tusing
-    , tonfail = optionMap convExpr x.onfail
-    , ty = tyunknown_
+  | UTestOTop x -> TmDecl
+    { decl = DeclUtest
+      { test = convExpr x.test
+      , expected = convExpr x.expected
+      , tusing = optionMap convExpr x.tusing
+      , tonfail = optionMap convExpr x.onfail
+      , info = x.info
+      }
     , info = x.info
-    , next = cont
+    , ty = tyunknown_
+    , inexpr = cont
     }
 end
 
@@ -344,7 +362,7 @@ lang ConvertFunOExpr = ConvertOCamlToMExpr + FunOExprAst + MkBody
     mkBody (map (lam x. (convParam x).0) x.params) (convExpr x.body)
 end
 
-lang ConvertMatchingOExpr = ConvertOCamlToMExpr + MatchingOExprAst + LetAst
+lang ConvertMatchingOExpr = ConvertOCamlToMExpr + MatchingOExprAst + DeclAst + LetDeclAst
   sem convExpr =
   | MatchingOExpr x ->
     let scrut = nameSym "scrut" in
@@ -353,11 +371,14 @@ lang ConvertMatchingOExpr = ConvertOCamlToMExpr + MatchingOExprAst + LetAst
     let mkArm = lam arm. lam cont.
       match_ scrutE (convPat arm.pat) (convExpr arm.body) cont
     in
-    TmLet
-    { ident = scrut
-    , tyAnnot = tyunknown_
-    , tyBody = tyunknown_
-    , body = convExpr x.scrut
+    TmDecl
+    { decl = DeclLet
+      { ident = scrut
+      , tyAnnot = tyunknown_
+      , tyBody = tyunknown_
+      , body = convExpr x.scrut
+      , info = x.info
+      }
     , inexpr = foldr mkArm never_ x.arms
     , ty = tyunknown_
     , info = x.info

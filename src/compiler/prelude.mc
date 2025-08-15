@@ -13,5 +13,5 @@ lang OCamlPrelude = ReprTypeAst + OCamlListAst + OCamlStringAst
       , type_ "bool" [] tybool_
       , type_ "unit" [] tyunit_
       ] in
-    bindall_ (snoc bindings tm)
+    bindall_ bindings tm
 end
