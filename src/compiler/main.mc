@@ -397,8 +397,7 @@ let argConfig =
 let compile : [String] -> [String] -> Expr -> String -> () =
   lam olibs. lam clibs. lam ast. lam destinationFile.
     compileMCore ast
-      { debugTypeAnnot = lam. ()
-      , debugGenerate = lam. ()
+      { debugGenerate = lam. ()
       , exitBefore = lam. ()
       , postprocessOcamlTops = lam x. x
       , compileOcaml = lam ol. lam cl. lam srcStr.
@@ -580,10 +579,10 @@ recursive
     else cont options ast
 in
 let pipeline = lam options. lam ast. lam phases.
-  let log = mkPhaseLogState options.debugPhases in
+  let log = mkPhaseLogState (setEmpty cmpString) options.debugPhases in
   let step = lam phase. lam next. lam options. lam ast.
     let next = lam options. lam ast.
-      endPhaseStats log phase.0 ast;
+      endPhaseStats log phase.0 (Left ast);
       next options ast in
     phase.1 options ast next in
   let composed = foldr step (lam. lam. ()) phases in

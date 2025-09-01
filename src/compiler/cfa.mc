@@ -9,7 +9,7 @@ end
 
 lang OCamlOpaqueCFA = CFA + OpaqueOCamlAst
   sem generateConstraints graph =
-  | TmLet { ident = ident, body = TmOpaqueOCaml _, info = info } -> graph
+  | TmDecl {decl = DeclLet {ident = ident, body = TmOpaqueOCaml _}} -> graph
 
 end
 
